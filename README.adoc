@@ -5,13 +5,14 @@ This is (opinionated) OpenRC runscript for QEMU virtual machines.
 ____ 
 You don’t need https://libvirt.org[libvirt] and its https://libvirt.org/formatdomain.html[awful XML configs] to use QEMU/KVM!
 Forked from https://github.com/jirutka/qemu-openrc 
-Added features: 
-1.Support passthrough usb, PCI devices.
-2.Support SATA devices and OVMF for UEFI
 ____
 
+==Added features: 
+* Support passthrough usb, PCI devices.
+* Support SATA devices and OVMF for UEFI
 
-== Requirements (only need when you intend to use VIRTIO.
+
+== Requirements (only need when you intend to use VIRTIO.）
 
 * https://wiki.gentoo.org/wiki/OpenRC[OpenRC]
 * Bash or Busybox’s ash (should work also with other POSIX shells)
