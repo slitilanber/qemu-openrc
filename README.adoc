@@ -3,8 +3,7 @@
 This is (opinionated) OpenRC runscript for QEMU virtual machines.
 
 ____ 
-You don’t need https://libvirt.org[libvirt] and its https://libvirt.org/formatdomain.html[awful XML configs] to use QEMU/KVM!\n
-Forked from https://github.com/jirutka/qemu-openrc 
+You don’t need https://libvirt.org[libvirt] and its https://libvirt.org/formatdomain.html[awful XML configs] to use QEMU/KVM!
 ____
 
 == Added features: 
@@ -48,7 +47,7 @@ apk add socat ovmf  # on Alpine
 
 . Clone this repository and jump in:
 +
-    git clone https://github.com/jirutka/qemu-openrc.git
+    git clone https://github.com/slitilanber/qemu-openrc.git
     cd qemu-openrc
 
 . Install runscript, example config and qemush utility:
