@@ -1,21 +1,23 @@
 #!/sbin/openrc-run
 # vim: set ft=sh: ts=4:
-# Based on https://github.com/jirutka/qemu-openrc
-# modified by slitilanber.
+# source: https://github.com/jirutka/qemu-openrc
 
-VERSION='0.8.1'
+VERSION='0.7.0'
 VM_NAME="${RC_SVCNAME#qemu.}"
 
-: ${user:=qemu}
-: ${group:=qemu}
+: ${user:=root}
+: ${group:=root}
 : ${pidfile:=/run/qemu/${VM_NAME}/qemu.pid}
 : ${logfile:=/var/log/qemu/${VM_NAME}.log}
 : ${shutdown_timeout:=40}
 : ${system_type:=x86_64}
 : ${enable_kvm:=yes}
 : ${enable_virtio:=no}
-: ${enable_vfio:=no}
-: ${disk_drive:=ahci}
+: ${enable_usb_passthrough:=no}
+: ${enable_pci_passthrough:=no}
+: ${use_sata_disk:=no}
+: ${use_virtio_scsi_disk:=yes}
+: ${use_ovmf:=no}
 : ${cpu_model:=host}
 : ${smp_cpus:=1}
 : ${smp_cpus_max:=$smp_cpus}
@@ -46,7 +48,6 @@ description_vmstatus='Show status reported by QEMU'
 command="/usr/bin/qemu-system-$system_type"
 command_args="
 	-machine type=q35
-	-bios /usr/share/OVMF/OVMF.fd
 	-name $VM_NAME,process=$VM_NAME
 	-nodefaults
 	-no-user-config
@@ -57,7 +58,6 @@ command_args="
 	-vga $vga
 	-device qemu-xhci
 	-device usb-tablet
-	-device ahci,id=ahci0,multifunction=on
 	-monitor unix:$monitor_socket,server,nowait"
 command_background='yes'
 
@@ -90,14 +90,23 @@ start_pre() {
 		command_args_push '-enable-kvm'
 	fi
 	
-	if yesno "$enable_virito"; then
+	if yesno "$enable_virtio"; then
 		command_args_push '-device virtio-balloon -device virtio-rng-pci'
 	fi
-	
-	if yesno "$enable_vfio"; then
-		command_args_push '-device vfio-pci,host=$vfio_ids,multifunction=on'
+	if yesno "$use_sata_disk"; then
+		command_args_push '-device ahci,id=ahci0,multifunction=on'
 	fi
 	
+	if yesno "$use_virtio_scsi_disk"; then
+		command_args_push '-device virtio-scsi-pci,id=scsi'
+	fi
+
+	if yesno "$use_ovmf"; then
+		cp /usr/share/OVMF/OVMF_VARS.fd /tmp/OVMF_VARS_$VM_NAME.fd
+		command_args_push '-drive if=pflash,format=raw,readonly,file=/usr/share/OVMF/OVMF_CODE.fd'
+		command_args_push '-drive if=pflash,format=raw,file=/tmp/OVMF_VARS_$VM_NAME.fd'
+	fi	
+
 	if [ "$memory" = "$memory_max" ]; then
 		memory_slots="0"
 	fi
@@ -106,9 +115,19 @@ start_pre() {
 	if yesno "$memory_hugepages"; then
 		command_args_push "-mem-path $hugepages_path"
 	fi
+
+	if yesno "$enable_usb_passthrough"; then
+		command_args_push "$(usb_args)"
+	fi
+	
+	if yesno "$enable_pci_passthrough"; then
+		command_args_push "$(pci_args)"
+	fi
+
 	if [ -n "$vnc_display" ]; then
 		command_args_push "-display vnc=${vnc_listen}:${vnc_display}${vnc_password:+",password"}"
 	fi
+
 	command_args_push "$(net_args) $(disk_args) $(cdrom_args) $extra_args"
 
 	if yesno "$EINFO_VERBOSE"; then
@@ -231,26 +250,51 @@ disk_args() {
      
 	for idx in $(seq 0 9); do
 		disk_id="disk${idx}"
-		driver=$(getval "disk${idx}_drive")
+                file=$(getval "disk${idx}_file")
+		driver=$(getval "disk${idx}_driver")
 		format=$(getval "disk${idx}_format")
 		cache=$(getval "disk${idx}_cache")
 		
-		# comma-separated key=value pairs; contains trailing comma if not empty
-		opts=$(set | sed -En "s/^disk${idx}_(.*)/\1/p" \
-				| grep -Ev '^(driver|format|cache)=.*$' \				
-				| tr $'\n' ',')
-
-		if [ -n "$opts" ]; then
-			if [ "$driver" == "virtio-scsi" ];then
-				echo "-device virtio-scsi-pci,id=scsi"
-				echo "-drive id=drive_scsi${idx},${format}${cache}media=disk,if=none"
-				echo "-device scsi-hd,drive=drive_scsi${idx},scsi-id=scsi${idx}"
-			else
-				echo "-drive id=drive_sata${idx},${format}${cache}media=disk,if=none"
+		if [ -n "$file" ] ; then
+			if [ "$driver" = 'virtio-scsi' ]; then
+				echo "-drive file=$file,id=drive_scsi${idx},format=${format},cache=${cache},media=disk,if=none"
+				echo "-device scsi-hd,drive=drive_scsi${idx},scsi-id=${idx}"
+			elif [ "$driver" = 'ahci' ]; then
+				echo "-drive file=$file,id=drive_sata${idx},format=${format},cache=${cache},media=disk,if=none"
 				echo "-device ide-hd,bus=ahci0.${idx},drive=drive_sata${idx},id=sata${idx}"
-			if
+			fi
 		fi
 	done
+}
+
+pci_args() {
+         local idx pci_bus
+
+         for idx in $(seq 0 9); do
+                pci_bus=$(getval "pci${idx}_bus")
+		pci_other=$(getval "pci${idx}_other")
+		if [ -n "$pci_bus" ]; then                  
+			echo "-device vfio-pci,host=$pci_bus,multifunction=on${pci_other}"
+		fi
+         done
+}
+
+usb_args() {
+	local idx type hostbus hostport vid pid
+	
+	for idx in $(seq 0 9); do
+		type=$(getval "usb${idx}_type")
+		hostbus=$(getval "usb${idx}_hostbus")
+		hostport=$(getval "usb${idx}_hostport")
+		vid=$(getval "usb${idx}_vendorid")
+		pid=$(getval "usb${idx}_productid")
+
+		if [ "$type" = "hostport" ]; then     
+			echo "-device usb-host,hostbus=$hostbus,hostport=$hostport"
+		elif [ "$type" = "productid" ]; then
+			echo "-device usb-host,vendorid=$vid,productid=$pid"
+		fi
+        done
 }
 
 cdrom_args() {
@@ -279,9 +323,7 @@ net_args() {
 
 		if [ -n "$net_type" ]; then
 			# comma-separated key=value pairs; contains trailing comma if not empty
-			opts=$(set | sed -En "s/^net${idx}_(.*)/\1/p" \
-					| grep -Ev '^(mac|device)=.*$' \
-					| tr $'\n' ',')
+			opts=$(set | sed -En "s/^net${idx}_(.*)/\1/p" | grep -Ev '^(mac|device)=.*$' | tr $'\n' ',')
 			mac=$(getval ${net_id}_mac "$(gen_macaddr ${VM_NAME}#${idx})")
 			dev=$(getval ${net_id}_device virtio-net-pci)
 
