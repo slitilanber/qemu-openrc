@@ -23,8 +23,9 @@ VM_NAME="alpine"
 use_ovmf="yes"
 
 ## And ahci pci device to surpport ahci drivered disk virtual disk
-## q35 type vm has already supplied achi pci device, bus it's not work for synology's DSM vms.
+## q35 type vm has already supplied achi pci device, bus it doesn't work for Xpenology's DSM bootloader.
 ## if don't add an extra ahci device and assign achi bus, DSM won't get IP.
+## In my case, DSM bootloader is 'JUN'S LOADER 1.04b'
 use_sata_disk="no"
 
 # Enable support virtio-scsi drivered virtual disk
@@ -39,10 +40,10 @@ use_virtio_scsi_disk="yes"
 #group="qemu"
 
 # Where to store the QEMU process PID.
-pidfile="/run/qemu/$VM_NAME/$VM_NAME.pid"
+pidfile="/run/qemu/$VM_NAME/${VM_NAME}.pid"
 
 # Where to redirect stdout/stderr of the QEMU process.
-logfile="/var/log/qemu/$VM_NAME.log"
+logfile="/var/log/qemu/${VM_NAME}.log"
 
 # How many seconds to wait after sending "system_shutdown" before force
 # stopping the VM.
@@ -73,7 +74,7 @@ memory="512M"
 # Maximum amount of RAM the VM can reach, i.e. how much memory may be allocated
 # for the VM after startup from the monitor console. Use suffix "M" or "G" for
 # megabytes or gigabytes respectively.
-memory_max="$memory"
+#memory_max="$memory"
 
 # Number of memory slots for additional hotpluggable memory. If it's 0, then
 # memory hotplug won't be enabled and the VM startup RAM will never increase.
@@ -107,7 +108,7 @@ vnc_display=04
 #vnc_password=
 
 # Path of the QEMU monitor socket for this VM.
-monitor_socket="/run/qemu/$VM_NAME/monitor.sock"
+monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 
 # Whether to enable virtio
 enable_virtio="yes"
@@ -148,17 +149,17 @@ net0_device="virtio-net"
 ## virtio-scsi drivers to be installed in the VM).
 #
 ## Example:
-#   disk0_file="/dev/mapper/$VM_NAME-disk0"
+#   disk0_file="/dev/mapper/${VM_NAME}-disk0"
 #   disk0_format="raw"
 #   disk0_cache="none"
 #   disk0_driver="ahci"
 #
-#   disk1_file="/var/lib/qemu/$VM_NAME/disk0.qcow2"
+#   disk1_file="/var/lib/qemu/${VM_NAME}/disk0.qcow2"
 #   disk1_format="qcow2"
 #   disk1_cache="none"
 #   disk1_driver="virtio-scsi"
 
-disk0_file="/mnt/portable/qemu/$VM_NAME/alpine.qcow2"
+disk0_file="/mnt/portable/qemu/${VM_NAME}/alpine.qcow2"
 disk0_format="qcow2"
 disk0_driver="virtio-scsi"
 disk0_cache="none"
@@ -174,7 +175,7 @@ disk0_cache="none"
 ## Example:
 #   cdrom0_file="/var/lib/qemu/virtio-win.iso"
 
-cdrom0_file="/mnt/portable/qemu/$VM_NAME/alpine-standard-3.11.6-x86_64.iso"
+cdrom0_file="/mnt/portable/qemu/${VM_NAME}/alpine-standard-3.11.6-x86_64.iso"
 
 ## Hardware passthrough
 ## PCI Passthrough
@@ -230,7 +231,7 @@ usb0_hostport="1"
 #usb1_pid="0x55aa"
 
 ## Any additional arguments to be passed to qemu-system-x86_64 command.
-extra_args="-writeconfig /mnt/portable/qemu/$VM_NAME/$VM_NAME.cfg"
+extra_args="-writeconfig /mnt/portable/qemu/${VM_NAME}/${VM_NAME}.cfg"
 
 ## Specify service dependencies. You can use the same directives as in the
 ## depend() function, but as variables prefixed by "rc_" (e.g. rc_need, rc_use).

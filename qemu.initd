@@ -246,11 +246,11 @@ command_args_push() {
 }
 
 disk_args() {
-	local idx opts driver format cache 
-     
+	local idx opts driver format cache
+
 	for idx in $(seq 0 9); do
 		disk_id="disk${idx}"
-                file=$(getval "disk${idx}_file")
+		file=$(getval "disk${idx}_file")
 		driver=$(getval "disk${idx}_driver")
 		format=$(getval "disk${idx}_format")
 		cache=$(getval "disk${idx}_cache")
@@ -271,7 +271,7 @@ pci_args() {
          local idx pci_bus pci_opts
 
          for idx in $(seq 0 9); do
-                pci_bus=$(getval "pci${idx}_bus")
+		pci_bus=$(getval "pci${idx}_bus")
 		pci_opts=$(getval "pci${idx}_opts")
 		if [ -n "$pci_bus" ]; then                  
 			echo "-device vfio-pci,host=$pci_bus${pci_opts}"
@@ -281,7 +281,7 @@ pci_args() {
 
 usb_args() {
 	local idx type hostbus hostport vid pid
-	
+
 	for idx in $(seq 0 9); do
 		type=$(getval "usb${idx}_type")
 		hostbus=$(getval "usb${idx}_hostbus")
