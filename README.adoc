@@ -2,7 +2,7 @@
 
 This is (opinionated) OpenRC runscript for QEMU virtual machines.
 
-____ 
+____
 You don’t need https://libvirt.org[libvirt] and its https://libvirt.org/formatdomain.html[awful XML configs] to use QEMU/KVM!
 ____
 

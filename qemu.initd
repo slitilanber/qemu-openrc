@@ -268,13 +268,13 @@ disk_args() {
 }
 
 pci_args() {
-         local idx pci_bus
+         local idx pci_bus pci_opts
 
          for idx in $(seq 0 9); do
                 pci_bus=$(getval "pci${idx}_bus")
-		pci_other=$(getval "pci${idx}_other")
+		pci_opts=$(getval "pci${idx}_opts")
 		if [ -n "$pci_bus" ]; then                  
-			echo "-device vfio-pci,host=$pci_bus,multifunction=on${pci_other}"
+			echo "-device vfio-pci,host=$pci_bus${pci_opts}"
 		fi
          done
 }

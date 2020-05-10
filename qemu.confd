@@ -31,9 +31,11 @@ use_sata_disk="no"
 use_virtio_scsi_disk="yes"
 
 # User to run the QEMU process.
+# use root when enable pci passthrough
 #user="qemu"
 
 # Group to run the QEMU process.
+# use root when enable pci passthrough
 #group="qemu"
 
 # Where to store the QEMU process PID.
@@ -196,11 +198,12 @@ enable_pci_passthrough="yes"
 #pci0_type="i915"
 #pci0_ids="8086:3e91"
 pci0_bus="0000:00:02.0"
-pci0_other=",x-vga=on,x-igd-opregion=on"
+pci0_opts=",multifunction=on,x-vga=on,x-igd-opregion=on"
 
 #pci0_type="ahci"
 #pci0_ids="1b21:0612"
 pci1_bus="0000:01:00.0"
+pci1_opts=",multifunction=on"
 
 # pci2_type="igb"
 # pci2_ids="8086:1539"
