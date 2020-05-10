@@ -1,8 +1,9 @@
 #!/sbin/openrc-run
 # vim: set ft=sh: ts=4:
-# source: https://github.com/jirutka/qemu-openrc
+# Based on https://github.com/jirutka/qemu-openrc
+# modified by slitilanber.
 
-VERSION='0.8.0'
+VERSION='0.7.1'
 VM_NAME="${RC_SVCNAME#qemu.}"
 
 : ${user:=qemu}
@@ -10,9 +11,11 @@ VM_NAME="${RC_SVCNAME#qemu.}"
 : ${pidfile:=/run/qemu/${VM_NAME}/qemu.pid}
 : ${logfile:=/var/log/qemu/${VM_NAME}.log}
 : ${shutdown_timeout:=40}
-
 : ${system_type:=x86_64}
 : ${enable_kvm:=yes}
+: ${enable_virtio:=no}
+: ${enable_vfio:=no}
+: ${disk_drive:=ahci}
 : ${cpu_model:=host}
 : ${smp_cpus:=1}
 : ${smp_cpus_max:=$smp_cpus}
@@ -42,17 +45,19 @@ description_vmstatus='Show status reported by QEMU'
 
 command="/usr/bin/qemu-system-$system_type"
 command_args="
+	-machine type=q35
+	-bios /usr/share/OVMF/OVMF.fd
 	-name $VM_NAME,process=$VM_NAME
 	-nodefaults
 	-no-user-config
 	-cpu $cpu_model
-	-realtime mlock=off
+	-overcommit mem-lock=off
 	-rtc base=$rtc_base
 	-smp cpus=$smp_cpus,maxcpus=$smp_cpus_max
-	-device virtio-balloon
 	-vga $vga
-	-device virtio-rng-pci
-	-device virtio-scsi-pci,id=scsi
+	-device qemu-xhci
+	-device usb-tablet
+	-device ahci,id=ahci0,multifunction=on
 	-monitor unix:$monitor_socket,server,nowait"
 command_background='yes'
 
@@ -84,6 +89,15 @@ start_pre() {
 	if yesno "$enable_kvm"; then
 		command_args_push '-enable-kvm'
 	fi
+	
+	if yesno "$enable_virito"; then
+		command_args_push '-device virtio-balloon -device virtio-rng-pci'
+	fi
+	
+	if yesno "$enable_vfio"; then
+		command_args_push '-device vfio-pci,host=$vfio_ids,multifunction=on'
+	fi
+	
 	if [ "$memory" = "$memory_max" ]; then
 		memory_slots="0"
 	fi
@@ -213,15 +227,28 @@ command_args_push() {
 }
 
 disk_args() {
-	local idx opts
-
+	local idx opts driver format cache 
+     
 	for idx in $(seq 0 9); do
+		disk_id="disk${idx}"
+		driver=$(getval "disk${idx}_drive")
+		format=$(getval "disk${idx}_format")
+		cache=$(getval "disk${idx}_cache")
+		
 		# comma-separated key=value pairs; contains trailing comma if not empty
-		opts=$(set | sed -En "s/^disk${idx}_(.*)/\1/p" | tr $'\n' ',')
+		opts=$(set | sed -En "s/^disk${idx}_(.*)/\1/p" \
+				| grep -Ev '^(driver|format|cache)=.*$' \				
+				| tr $'\n' ',')
 
 		if [ -n "$opts" ]; then
-			echo "-drive id=hd${idx},${opts}media=disk,if=none"
-			echo "-device scsi-hd,drive=hd${idx},scsi-id=${idx}"
+			if [ "$driver" == "virtio-scsi" ];then
+				echo "-device virtio-scsi-pci,id=scsi"
+				echo "-drive id=drive_scsi${idx},${format}${cache}media=disk,if=none"
+				echo "-device scsi-hd,drive=drive_scsi${idx},scsi-id=scsi${idx}"
+			else
+				echo "-drive id=drive_sata${idx},${format}${cache}media=disk,if=none"
+				echo "-device ide-hd,bus=ahci0.${idx},drive=drive_sata${idx},id=sata${idx}"
+			if
 		fi
 	done
 }
