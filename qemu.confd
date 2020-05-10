@@ -31,10 +31,10 @@ use_sata_disk="no"
 use_virtio_scsi_disk="yes"
 
 # User to run the QEMU process.
-user="root"
+user="qemu"
 
 # Group to run the QEMU process.
-group="root"
+group="qemu"
 
 # Where to store the QEMU process PID.
 pidfile="/run/qemu/$VM_NAME/$VM_NAME.pid"
