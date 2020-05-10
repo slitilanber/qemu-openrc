@@ -3,7 +3,7 @@
 # Based on https://github.com/jirutka/qemu-openrc
 # modified by slitilanber.
 
-VERSION='0.7.1'
+VERSION='0.8.1'
 VM_NAME="${RC_SVCNAME#qemu.}"
 
 : ${user:=qemu}

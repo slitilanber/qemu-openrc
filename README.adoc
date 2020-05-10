@@ -2,12 +2,16 @@
 
 This is (opinionated) OpenRC runscript for QEMU virtual machines.
 
-____
+____ 
 You don’t need https://libvirt.org[libvirt] and its https://libvirt.org/formatdomain.html[awful XML configs] to use QEMU/KVM!
+Forked from https://github.com/jirutka/qemu-openrc 
+Added features: 
+1.Support passthrough usb, PCI devices.
+2.Support SATA devices and OVMF for UEFI
 ____
 
 
-== Requirements
+== Requirements (only need when you intend to use VIRTIO.
 
 * https://wiki.gentoo.org/wiki/OpenRC[OpenRC]
 * Bash or Busybox’s ash (should work also with other POSIX shells)
@@ -37,8 +41,8 @@ Install package https://pkgs.alpinelinux.org/package/v3.4/main/x86_64/qemu-openr
 +
 [source, sh]
 ----
-emerge -av net-misc/socat  # on Gentoo
-apk add socat  # on Alpine
+emerge -av net-misc/socat sys-firmware/edk2-ovmf # on Gentoo 
+apk add socat ovmf  # on Alpine
 ----
 
 . Clone this repository and jump in:
@@ -55,20 +59,20 @@ You may use variables `DESTDIR` and `PREFIX` to specify the target directories.
 
 == How to configure a new VM
 
-. Symlink runscript `qemu` for your new VM named `jarvis`:
+. Symlink runscript `qemu` for your new VM named `alpine`:
 +
     cd /etc/init.d
-    ln -s qemu qemu.jarvis
+    ln -s qemu qemu.alpine
 
 . Configure your new VM:
 +
     cd /etc/conf.d
-    cp qemu qemu.jarvis
-    vim qemu.jarvis
+    cp qemu qemu.alpine
+    vim qemu.alpine
 
 . Start your new VM:
 +
-    rc-service qemu.jarvis start
+    rc-service qemu.alpine start
 
 
 == License
