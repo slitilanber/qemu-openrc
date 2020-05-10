@@ -5,8 +5,8 @@
 VERSION='0.8.1'
 VM_NAME="${RC_SVCNAME#qemu.}"
 
-: ${user:=root}
-: ${group:=root}
+: ${user:=qemu}
+: ${group:=qemu}
 : ${pidfile:=/run/qemu/${VM_NAME}/qemu.pid}
 : ${logfile:=/var/log/qemu/${VM_NAME}.log}
 : ${shutdown_timeout:=40}
