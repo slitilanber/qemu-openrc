@@ -204,7 +204,7 @@ stop() {
 stop_post() {
 	[ -S "$monitor_socket" ] && rm -f "$monitor_socket"
 	[ -f "$pidfile" ] && rm -f "$pidfile"
-	[ -f "/tmp/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/tmp/OVMF_VARS_${VM_NAME}.fd"
+	[ -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd"
 	[ -S "/run/qemu/${VM_NAME}/qga.sock" ] && rm -f "/run/qemu/${VM_NAME}/qga.sock"
 	return 0
 }
