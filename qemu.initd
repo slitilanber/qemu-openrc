@@ -204,7 +204,7 @@ stop() {
 stop_post() {
 	[ -S "$monitor_socket" ] && rm -f "$monitor_socket"
 	[ -f "$pidfile" ] && rm -f "$pidfile"
-        [ -f "/tmp/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/tmp/OVMF_VARS_${VM_NAME}.fd"
+	[ -f "/tmp/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/tmp/OVMF_VARS_${VM_NAME}.fd"
 	[ -S "/run/qemu/${VM_NAME}/qga.sock" ] && rm -f "/run/qemu/${VM_NAME}/qga.sock"
 	return 0
 }
@@ -298,15 +298,15 @@ rng_args() {
 }
 
 pci_args() {
-         local idx pci_bus pci_opts
+	local idx pci_bus pci_opts
 
-         for idx in $(seq 0 9); do
+	for idx in $(seq 0 9); do
 		pci_bus=$(getval "pci${idx}_bus")
 		pci_opts=$(getval "pci${idx}_opts")
 		if [ -n "$pci_bus" ]; then                  
 			echo "-device vfio-pci,host=$pci_bus${pci_opts}"
 		fi
-         done
+	done
 }
 
 usb_args() {
