@@ -25,7 +25,8 @@ ____
     CONFIG_VIRTIO_BALLOON=y
     CONFIG_VIRTIO_NET=y
     CONFIG_VIRTIO_PCI=y
-== Optionals
+
+== Optional requirements
 * VMFS, for UEFI support
 
 == Installation
