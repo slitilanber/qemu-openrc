@@ -17,8 +17,7 @@ ____
 * https://wiki.gentoo.org/wiki/OpenRC[OpenRC]
 * Bash or Busybox’s ash (should work also with other POSIX shells)
 * http://www.dest-unreach.org/socat[socat]
-* Linux kernel with virtio drivers
-* (only need when you intend to use VIRTIO.)
+* Linux kernel with virtio drivers (only need when you intend to use VIRTIO.)
 +
     CONFIG_HW_RANDOM_VIRTIO=y
     CONFIG_SCSI_VIRTIO=y
@@ -26,7 +25,8 @@ ____
     CONFIG_VIRTIO_BALLOON=y
     CONFIG_VIRTIO_NET=y
     CONFIG_VIRTIO_PCI=y
-
+== Optionals
+* VMFS, for UEFI support
 
 == Installation
 
