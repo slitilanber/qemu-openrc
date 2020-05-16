@@ -16,76 +16,69 @@
 # suitable for you, then you can omit that variable in your VM config.
 #
 
-###"Caution !!" there is a bug that '${RC_SVCNAME#qemu.}' in qemu.initd can't get VM_NAME correctly.
+###'${RC_SVCNAME#qemu.}' in qemu.initd can't get VM_NAME correctly.
 VM_NAME="alpine"
 
-# Enable ovmf for efi, default is biso
-use_ovmf="yes"
+# Enable ovmf for UEFI support. Default is BIOS.
+enable_ovmf="yes"
 
-## And ahci pci device to surpport ahci drivered disk virtual disk
-## q35 type vm has already supplied achi pci device, bus it doesn't work for Xpenology's DSM bootloader.
-## if don't add an extra ahci device and assign achi bus, DSM won't get IP.
-## In my case, DSM bootloader is 'JUN'S LOADER 1.04b'
-use_sata_disk="no"
+# Keyboard layout. Default is en-us.
+# keyboard="en-us"
 
-# Enable support virtio-scsi drivered virtual disk
-use_virtio_scsi_disk="yes"
+# User to run the QEMU process. Default is qemu.
+# Set user as root when pci_passthrough or /dev/hwrng is enabled
+# user="root"
 
-# User to run the QEMU process.
-# use root when enable pci passthrough
-#user="qemu"
-
-# Group to run the QEMU process.
-# use root when enable pci passthrough
-#group="qemu"
+# Group to run the QEMU process. Default is qemu.
+# Set group as root  when pci_passthrough or /dev/hwrng is enabled
+# group="root"
 
 # Where to store the QEMU process PID.
-pidfile="/run/qemu/$VM_NAME/${VM_NAME}.pid"
+pidfile="/run/qemu/${VM_NAME}/${VM_NAME}.pid"
 
 # Where to redirect stdout/stderr of the QEMU process.
 logfile="/var/log/qemu/${VM_NAME}.log"
 
-# How many seconds to wait after sending "system_shutdown" before force
-# stopping the VM.
-#shutdown_timeout=40
-
+# How many seconds to wait after sending "system_shutdown"
+# before force stopping the VM. Default is 40 seconds
+#  shutdown_timeout=40
 
 # QEMU system to emulate; you need qemu-system-${system_type} binary.
-#system_type="x86_64"
+#  system_type="x86_64"
 
 # Whether to enable KVM (hardware-assisted virtualization).
 enable_kvm="yes"
 
 # Select CPU model. Value "host" is allowed only for KVM.
 # Run `qemu-system-$system_type -cpu help` for list of options.
-#cpu_model="host"
+#  cpu_model="host"
 
 # Simulate an SMP system with n CPUs.
-smp_cpus="1"
+smp_cpus="2"
 
 # Maximum number of hotpluggable CPUs, i.e. how many CPUs may be added to the
 # VM after startup from the monitor console.
-#smp_cpus_max="$smp_cpus"
+#  smp_cpus_max="$smp_cpus"
 
 # Amount of RAM to allocate for the VM on startup. Use suffix "M" or "G" for
 # megabytes or gigabytes respectively.
-memory="512M"
+memory="1G"
 
 # Maximum amount of RAM the VM can reach, i.e. how much memory may be allocated
 # for the VM after startup from the monitor console. Use suffix "M" or "G" for
 # megabytes or gigabytes respectively.
-#memory_max="$memory"
+#  memory_max="$memory"
 
 # Number of memory slots for additional hotpluggable memory. If it's 0, then
 # memory hotplug won't be enabled and the VM startup RAM will never increase.
 # If $memory == $memory_max, then this is forced to 0.
-#memory_slots=2
+#  memory_slots=2
 
 # Whether to use hugetlbfs mounted on $hugepages_path for the VM RAM.
-#memory_hugepages="no"
+#  memory_hugepages="no"
 
 # Mount point of the hugetlbfs.
-#hugepages_path="/dev/hugepages"
+#  hugepages_path="/dev/hugepages"
 
 # Start the RTC at the current UTC, or local time? Use "utc", or "localtime".
 # Note: "localtime" is required for correct date in Windows.
@@ -94,7 +87,7 @@ rtc_base="localtime"
 # Select type of VGA card to emulate. Valid values for type are: cirrus, std,
 # vmware, qxl, tcx, cg3, and none. See option -vga in man qemu for more
 # information.
-vga="qxl"
+vga="std"
 
 # Address to listen for VNC (TCP) connections.
 vnc_listen="0.0.0.0"
@@ -105,15 +98,26 @@ vnc_display=04
 
 # Password required for client connections on VNC. If empty, then password
 # base authentication is disabled.
-#vnc_password=
+#  vnc_password=
 
 # Path of the QEMU monitor socket for this VM.
 monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 
-# Whether to enable virtio
-enable_virtio="yes"
+# Whether to enable virtio-balloon
+enable_virtio_balloon="yes" 
 
-##
+# Path of RNG divice
+# The default backend is to use the host's /dev/random as a source of entropy
+# Refer to "https://wiki.qemu.org/Features/VirtIORNG"
+# Need root permissions.
+enable_virtio_rng="yes"
+#rng_filename="/dev/hwrng"
+
+# Whether to enable qemu-agent via virtio-serial
+# Refer to "https://wiki.qemu.org/Features/GuestAgent"
+enable_qemu_agent="no"
+
+#######################################################
 # Network interfaces
 #
 # You can specify up to 10 NICs using variables netX and netX_OPTION. For list
@@ -131,40 +135,61 @@ enable_virtio="yes"
 #   net0="bridge"
 #   net0_br="br0"
 #   net0_mac="52:54:12:34:56:78"
-#   net0_device="e1000"
+#   net0_device="virtio-net"
 #
-net0="bridge"
-net0_br="br0"
-net0_mac="52:54:12:34:56:88"
-net0_device="virtio-net"
 
-
-##
-## Hard-drives
+#######################################################
+# Hard-drives
 #
-## You can specify up to 10 drives using variables diskX_OPTION. For list of
-## available options open man qemu and find -drive.
+# You can specify up to 10 drives using variables diskX_OPTION.
+# For list of available options open man qemu and find -drive.
+# If the native SATA Controller supplied by q35 type of VM,
+# the Max. number of drives is 6.
 #
-# These drives will use driver scsi-disk connected to virtio-scsi-pci (requires
-## virtio-scsi drivers to be installed in the VM).
+# Virtio-scsi disks will be connected to virtio-scsi-pci 
+# (requires virtio-scsi drivers to be installed in the VM).
 #
+# Whether to enable support virtio-scsi disks
+#
+enable_virtio_scsi="yes"
+#
+# Add an extra SATA Controller. q35 type of VM has natively
+# supplied a SATA Controller with 6 ports, but in some cases,   
+# the native Sata Controller doesn't work.
+# In my case, Xpenology's DSM bootloader, 1.04b for DS918+, DSM won't get IP. 
+#
+enable_extra_sata="no"
+#
+# When mapping physical drives to VMs, set if to "virtio" for perfomance.
+# You can specify other parameters when you need, 
+# and use comma-separated key=value pairs and don't delete the prefix ",".
 ## Example:
+#
+# For extra-sata,available if is none.
 #   disk0_file="/dev/mapper/${VM_NAME}-disk0"
 #   disk0_format="raw"
 #   disk0_cache="none"
-#   disk0_driver="ahci"
-#
-#   disk1_file="/var/lib/qemu/${VM_NAME}/disk0.qcow2"
-#   disk1_format="qcow2"
+#   disk0_type="extra-sata"
+#   disk0_if="none"
+#   disk0_opts=",aio=native,detect-zeroes=on"
+
+# For native-sata,available if are virtio,ide.
+#   disk1_file="/dev/mapper/${VM_NAME}-disk0"
+#   disk1_format="raw"
 #   disk1_cache="none"
-#   disk1_driver="virtio-scsi"
+#   disk1_type="native-sata"
+#   disk1_if="virtio"
+#   disk1_opts=",aio=native,detect-zeroes=on"
 
-disk0_file="/mnt/portable/qemu/${VM_NAME}/alpine.qcow2"
-disk0_format="qcow2"
-disk0_driver="virtio-scsi"
-disk0_cache="none"
+# For virtio-scsi, available if is none.
+#   disk2_file="/var/lib/qemu/${VM_NAME}/disk0.qcow2" 
+#   disk2_format="qcow2" 
+#   disk2_cache="writeback"
+#   disk2_driver="virtio-scsi"
+#   disk2_if="none"
+#   disk2_opts=",aio=native,discard=unmap,detect-zeroes=unmap"
 
-##
+######################################################
 # CD-ROMs
 #
 ## You can specify up to 10 cdrom drives using variables cdromX_file.
@@ -175,64 +200,74 @@ disk0_cache="none"
 ## Example:
 #   cdrom0_file="/var/lib/qemu/virtio-win.iso"
 
-cdrom0_file="/mnt/portable/qemu/${VM_NAME}/alpine-standard-3.11.6-x86_64.iso"
-
-## Hardware passthrough
+#######################################################
+# Hardware passthrough
+######################################
 ## PCI Passthrough
-## You should specify what type of pci device you want to passthrough
-## Nomally is (i915|igb|ahci|others)
-## "i915" stand for IGD of Intel CPU (aka. internal GPU Device)
-## "igb" stand for Intel internet card use igb driver,such as I210,I211.
-## "achi" stand for pcie sata card
-## "other",you can find by the command bellow
-## 1. lspci, this command to find bridged address of pci device you want to passthrough.
-##     such as '00:02:00' stand for IGD
-## 2. find /sys/bus/pci/drivers/*/ -path '*00:02:00*',this command will help you
-##    to find the type of device and its full address. Example, the result of this command
-##    "/sys/bus/pci/drivers/igb/0000:02:00.0"
-##    "igb" stand for type of device, adn we will use for type
-##    "0000:02:00.0" stand for full address, and we will use for ids.
+# Need root permissions.
+# You should specify what type of pci device you want to passthrough
+# Nomally is (i915|igb|ahci|others)
+# "i915" stand for IGD of Intel CPU (aka. internal GPU Device)
+# "igb" stand for Intel internet card use igb driver,such as I210,I211.
+# "achi" stand for pcie sata card
+# "other",you can find by the command bellow
+# 1. lspci, this command to find bridged address of pci device you want to passthrough.
+#     such as '00:02:00' stand for IGD
+# 2. find /sys/bus/pci/drivers/*/ -path '*00:02:00*',this command will help you
+#    to find the type of device and its full address. Example, the result of this command
+#    "/sys/bus/pci/drivers/igb/0000:02:00.0"
+#    "igb" stand for type of device, adn we will use for type
+#    "0000:02:00.0" stand for full address, and we will use for ids.
+#
+enable_pci_passthrough="no"
+#
+# You can specify other parameters, but shoud use comma-separated key=value pairs and a prefix ","
+# type and ids is not used now, maybe use future.
+# Uncomment bus to enable passthrough device.
+# You can specify other parameters when you need, 
+# and use comma-separated key=value pairs and don't delete the prefix ",".
+ 
+#  pci0_type="i915"
+#  pci0_ids="8086:3e91"
+#  pci0_bus="0000:00:02.0"
+#  pci0_opts=",multifunction=on,x-vga=on,x-igd-opregion=on"
 
-enable_pci_passthrough="yes"
+#  pci1_type="ahci"
+#  pci1_ids="1b21:0612"
+#  pci1_bus="0000:01:00.0"
+#  pci1_opts=",multifunction=on"
 
-## Example
-#pci0_type="i915"
-#pci0_ids="8086:3e91"
-pci0_bus="0000:00:02.0"
-pci0_opts=",multifunction=on,x-vga=on,x-igd-opregion=on"
+#  pci2_type="igb"
+#  pci2_ids="8086:1539"
+#  pci2_bus="0000:02:00.0"
 
-#pci0_type="ahci"
-#pci0_ids="1b21:0612"
-pci1_bus="0000:01:00.0"
-pci1_opts=",multifunction=on"
+#  pci3_type="nvme"
+#  pci3_ids="1179:010f"
+#  pci3_bus="0000:03:00.0"
 
-# pci2_type="igb"
-# pci2_ids="8086:1539"
-# pci2_bus="0000:02:00.0"
-
-# pci3_type="nvme"
-# pci3_ids="1179:010f"
-# pci3_bus="0000:03:00.0"
-
-## USB Passthrough
+######################################
+# USB Passthrough
 # Uncommented usb device will be passthrough to guest.
+#
+enable_usb_passthrough="no"
+#
+# Example 1: passthrough a specified hostport to guest,
+# any usb device pluged in this hostport will be passthroughed.
 
-## Example 1: passthrough a specified hostport to guest,
-## any usb device pluged in this hostport will be passthroughed.
-enable_usb_passthrough="yes"
+#  usb0_type="hostport"
+#  usb0_hostbus="2"
+#  usb0_hostport="1"
 
-usb0_type="hostport"
-usb0_hostbus="2"
-usb0_hostport="1"
+# Example 2: passthrough a specified usb device to guest according to vid & pid.
+#  usb1_type="productid"
+#  usb1_vid="0x174c"
+#  usb1_pid="0x55aa"
 
-## Example 2: passthrough a specified usb device to guest according to vid & pid.
-#usb1_type="productid"
-#usb1_vid="0x174c"
-#usb1_pid="0x55aa"
-
+#######################################################
 ## Any additional arguments to be passed to qemu-system-x86_64 command.
-extra_args="-writeconfig /mnt/portable/qemu/${VM_NAME}/${VM_NAME}.cfg"
+#  extra_args=""
 
-## Specify service dependencies. You can use the same directives as in the
-## depend() function, but as variables prefixed by "rc_" (e.g. rc_need, rc_use).
-#rc_need=""
+#######################################################
+# Specify service dependencies. You can use the same directives as in the
+# depend() function, but as variables prefixed by "rc_" (e.g. rc_need, rc_use).
+#  rc_need=""

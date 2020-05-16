@@ -11,13 +11,17 @@ VM_NAME="${RC_SVCNAME#qemu.}"
 : ${logfile:=/var/log/qemu/${VM_NAME}.log}
 : ${shutdown_timeout:=40}
 : ${system_type:=x86_64}
+: ${boot_order:=cdn}
 : ${enable_kvm:=yes}
-: ${enable_virtio:=no}
+: ${enable_virtio_rng:=yes}
+: ${rng_filename:=/dev/random}
+: ${enable_virtio_balloon:=yes}
 : ${enable_usb_passthrough:=no}
 : ${enable_pci_passthrough:=no}
-: ${use_sata_disk:=no}
-: ${use_virtio_scsi_disk:=yes}
-: ${use_ovmf:=no}
+: ${enable_qemu_agent:=no}
+: ${enable_extra_sata:=no}
+: ${enable_virtio_scsi:=yes}
+: ${enable_ovmf:=no}
 : ${cpu_model:=host}
 : ${smp_cpus:=1}
 : ${smp_cpus_max:=$smp_cpus}
@@ -26,6 +30,7 @@ VM_NAME="${RC_SVCNAME#qemu.}"
 : ${memory_slots:=2}
 : ${memory_hugepages:=no}
 : ${rtc_base:=utc}
+: ${keyboard:=en-us}
 : ${vga:=std}
 : ${vnc_listen:=0.0.0.0}
 : ${hugepages_path:=/dev/hugepages}
@@ -51,6 +56,8 @@ command_args="
 	-name $VM_NAME,process=$VM_NAME
 	-nodefaults
 	-no-user-config
+	-k $keyboard
+	-boot order=$boot_order,menu=on,strict=on,reboot-timeout=1000
 	-cpu $cpu_model
 	-overcommit mem-lock=off
 	-rtc base=$rtc_base
@@ -90,21 +97,33 @@ start_pre() {
 		command_args_push '-enable-kvm'
 	fi
 	
-	if yesno "$enable_virtio"; then
-		command_args_push '-device virtio-balloon -device virtio-rng-pci'
+	if yesno "$enable_virtio_balloon"; then
+		command_args_push '-device virtio-balloon'
 	fi
-	if yesno "$use_sata_disk"; then
+
+	if yesno "$enable_virtio_rng"; then
+		command_args_push "$(rng_args)"
+	fi
+	
+	if yesno "$enable_qemu_agent"; then
+		command_args_push "-chardev socket,path=/run/qemu/${VM_NAME}/qga.sock,server,nowait,id=qga0"
+		command_args_push '-device virtio-serial'
+		command_args_push '-device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0'
+	fi
+
+	if yesno "$enable_extra_sata"; then
 		command_args_push '-device ahci,id=ahci0,multifunction=on'
 	fi
 	
-	if yesno "$use_virtio_scsi_disk"; then
+	if yesno "$enable_virtio_scsi"; then
 		command_args_push '-device virtio-scsi-pci,id=scsi'
 	fi
 
-	if yesno "$use_ovmf"; then
-		cp /usr/share/OVMF/OVMF_VARS.fd /tmp/OVMF_VARS_$VM_NAME.fd
+	if yesno "$enable_ovmf"; then
+		cp /usr/share/OVMF/OVMF_VARS.fd /run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd
+		chown -R $user:$group /run/qemu/${VM_NAME}/OVMF_VARS_$VM_NAME.fd
 		command_args_push '-drive if=pflash,format=raw,readonly,file=/usr/share/OVMF/OVMF_CODE.fd'
-		command_args_push '-drive if=pflash,format=raw,file=/tmp/OVMF_VARS_$VM_NAME.fd'
+		command_args_push '-drive if=pflash,format=raw,file=/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd'
 	fi	
 
 	if [ "$memory" = "$memory_max" ]; then
@@ -185,6 +204,8 @@ stop() {
 stop_post() {
 	[ -S "$monitor_socket" ] && rm -f "$monitor_socket"
 	[ -f "$pidfile" ] && rm -f "$pidfile"
+        [ -f "/tmp/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/tmp/OVMF_VARS_${VM_NAME}.fd"
+	[ -S "/run/qemu/${VM_NAME}/qga.sock" ] && rm -f "/run/qemu/${VM_NAME}/qga.sock"
 	return 0
 }
 
@@ -246,25 +267,34 @@ command_args_push() {
 }
 
 disk_args() {
-	local idx opts driver format cache
+	local idx opts driver format cache if opts
 
-	for idx in $(seq 0 9); do
+	for idx in $(seq 0 5); do
 		disk_id="disk${idx}"
 		file=$(getval "disk${idx}_file")
-		driver=$(getval "disk${idx}_driver")
+		type=$(getval "disk${idx}_type")
 		format=$(getval "disk${idx}_format")
 		cache=$(getval "disk${idx}_cache")
-		
+		if=$(getval "disk${idx}_if")
+		opts=$(getval "disk${idx}_opts")
 		if [ -n "$file" ] ; then
-			if [ "$driver" = 'virtio-scsi' ]; then
-				echo "-drive file=$file,id=drive_scsi${idx},format=${format},cache=${cache},media=disk,if=none"
-				echo "-device scsi-hd,drive=drive_scsi${idx},scsi-id=${idx}"
-			elif [ "$driver" = 'ahci' ]; then
-				echo "-drive file=$file,id=drive_sata${idx},format=${format},cache=${cache},media=disk,if=none"
-				echo "-device ide-hd,bus=ahci0.${idx},drive=drive_sata${idx},id=sata${idx}"
+			if [ "$type" = 'virtio-scsi' ]; then
+				echo "-drive file=$file,id=virtio_scsi${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
+				echo "-device scsi-hd,drive=virtio_scsi${idx},scsi-id=${idx}"
+			elif [ "$type" = 'extra-sata' ]; then
+				echo "-drive file=$file,id=extra_sata${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
+				echo "-device ide-hd,bus=ahci0.${idx},drive=extra_sata${idx},id=sata${idx}"
+			elif [ "$type" = 'native-sata' ]; then
+				echo "-drive file=$file,format=${format},node-name=native_sata${idx},cache=${cache},media=disk,if=${if}${opts}"
 			fi
 		fi
 	done
+}
+
+rng_args() { 
+	filename=$(getval "rng_filename")
+	echo "-object rng-random,filename=$filename,id=rng0"
+	echo "-device virtio-rng-pci,rng=rng0"
 }
 
 pci_args() {
