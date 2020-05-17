@@ -13,14 +13,15 @@ VM_NAME="${RC_SVCNAME#qemu.}"
 : ${system_type:=x86_64}
 : ${boot_order:=cdn}
 : ${enable_kvm:=yes}
+: ${enable_virtio_balloon:=yes}
+: ${enable_virtio_scsi:=yes}
 : ${enable_virtio_rng:=yes}
 : ${rng_filename:=/dev/random}
-: ${enable_virtio_balloon:=yes}
+: ${enable_usb_device:=yes}
 : ${enable_usb_passthrough:=no}
 : ${enable_pci_passthrough:=no}
 : ${enable_qemu_agent:=no}
 : ${enable_extra_sata:=no}
-: ${enable_virtio_scsi:=yes}
 : ${enable_ovmf:=no}
 : ${cpu_model:=host}
 : ${smp_cpus:=1}
@@ -57,15 +58,13 @@ command_args="
 	-nodefaults
 	-no-user-config
 	-k $keyboard
-	-boot order=$boot_order,menu=on,strict=on,reboot-timeout=1000
 	-cpu $cpu_model
 	-overcommit mem-lock=off
 	-rtc base=$rtc_base
 	-smp cpus=$smp_cpus,maxcpus=$smp_cpus_max
 	-vga $vga
-	-device qemu-xhci
-	-device usb-tablet
-	-monitor unix:$monitor_socket,server,nowait"
+	-monitor unix:$monitor_socket,server,nowait
+	-boot order=$boot_order,menu=on,strict=on,reboot-timeout=1000"
 command_background='yes'
 
 start_stop_daemon_args="
@@ -97,6 +96,17 @@ start_pre() {
 		command_args_push '-enable-kvm'
 	fi
 	
+	if yesno "$enable_usb_device"; then
+		command_args_push "
+         		-machine usb=on
+			-device usb-tablet
+        		-device ich9-usb-ehci1,id=usb
+			-device ich9-usb-uhci1,masterbus=usb.0,firstport=0,multifunction=on
+			-device ich9-usb-uhci2,masterbus=usb.0,firstport=2 
+        		-device ich9-usb-uhci3,masterbus=usb.0,firstport=4
+        		-device nec-usb-xhci,id=usb2"
+	fi
+
 	if yesno "$enable_virtio_balloon"; then
 		command_args_push '-device virtio-balloon'
 	fi
@@ -106,9 +116,10 @@ start_pre() {
 	fi
 	
 	if yesno "$enable_qemu_agent"; then
-		command_args_push "-chardev socket,path=/run/qemu/${VM_NAME}/qga.sock,server,nowait,id=qga0"
-		command_args_push '-device virtio-serial'
-		command_args_push '-device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0'
+		command_args_push "
+			-chardev socket,path=/run/qemu/${VM_NAME}/qga.sock,server,nowait,id=qga0
+			-device virtio-serial 
+			-device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0"
 	fi
 
 	if yesno "$enable_extra_sata"; then
@@ -122,8 +133,9 @@ start_pre() {
 	if yesno "$enable_ovmf"; then
 		cp /usr/share/OVMF/OVMF_VARS.fd /run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd
 		chown -R $user:$group /run/qemu/${VM_NAME}/OVMF_VARS_$VM_NAME.fd
-		command_args_push '-drive if=pflash,format=raw,readonly,file=/usr/share/OVMF/OVMF_CODE.fd'
-		command_args_push '-drive if=pflash,format=raw,file=/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd'
+		command_args_push "
+			-drive if=pflash,format=raw,readonly,file=/usr/share/OVMF/OVMF_CODE.fd
+			-drive if=pflash,format=raw,file=/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd"
 	fi	
 
 	if [ "$memory" = "$memory_max" ]; then
@@ -136,10 +148,12 @@ start_pre() {
 	fi
 
 	if yesno "$enable_usb_passthrough"; then
+		check_user
 		command_args_push "$(usb_args)"
 	fi
 	
 	if yesno "$enable_pci_passthrough"; then
+		check_user
 		command_args_push "$(pci_args)"
 	fi
 
@@ -204,7 +218,7 @@ stop() {
 stop_post() {
 	[ -S "$monitor_socket" ] && rm -f "$monitor_socket"
 	[ -f "$pidfile" ] && rm -f "$pidfile"
-	[ -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd"
+        [ -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd"
 	[ -S "/run/qemu/${VM_NAME}/qga.sock" ] && rm -f "/run/qemu/${VM_NAME}/qga.sock"
 	return 0
 }
@@ -293,23 +307,27 @@ disk_args() {
 
 rng_args() { 
 	filename=$(getval "rng_filename")
+	if [ "$filename" = '/dev/hwrng' ]; then
+		check_user
+	fi
 	echo "-object rng-random,filename=$filename,id=rng0"
 	echo "-device virtio-rng-pci,rng=rng0"
 }
 
 pci_args() {
-	local idx pci_bus pci_opts
+         local idx pci_bus pci_opts
 
-	for idx in $(seq 0 9); do
+         for idx in $(seq 0 9); do
 		pci_bus=$(getval "pci${idx}_bus")
 		pci_opts=$(getval "pci${idx}_opts")
 		if [ -n "$pci_bus" ]; then                  
 			echo "-device vfio-pci,host=$pci_bus${pci_opts}"
 		fi
-	done
+         done
 }
 
 usb_args() {
+	export enable_usb_device="yes"
 	local idx type hostbus hostport vid pid
 
 	for idx in $(seq 0 9); do
@@ -334,8 +352,7 @@ cdrom_args() {
 		file=$(getval "cdrom${idx}_file")
 
 		if [ -n "$file" ]; then
-			echo "-drive id=cdr${idx},media=cdrom,if=none,file='$file',readonly,cache=none"
-			echo "-device ide-cd,drive=cdr${idx}"
+			echo "-drive file=$file,media=cdrom,if=ide,readonly,cache=none,node-name=cdr${idx}"
 		fi
 	done
 }
@@ -397,4 +414,11 @@ getval() {
 	local default="${2:-}"
 
 	eval "printf '%s\n' \"\${$var_name:-$default}\""
+}
+
+check_user() {
+	if [ "$user" != 'root' ]; then
+		ewarn "ERROR: user should be root when hwrng,usb or pci passthrough is enabled"
+		return 1
+	fi
 }

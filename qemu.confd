@@ -19,8 +19,14 @@
 ###'${RC_SVCNAME#qemu.}' in qemu.initd can't get VM_NAME correctly.
 VM_NAME="alpine"
 
-# Enable ovmf for UEFI support. Default is BIOS.
-enable_ovmf="yes"
+# Boot order. Default is cdn.
+#boot_order="cdn,once=d" 
+
+# Enable ovmf for UEFI support. Default is no.
+#enable_ovmf="yes"
+
+# enable usb_device. Default is yes.
+#enable_usb_device="no"
 
 # Keyboard layout. Default is en-us.
 #keyboard="en-us"
