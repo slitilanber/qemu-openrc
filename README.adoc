@@ -11,6 +11,7 @@ ____
 * Support SATA devices
 * Support OVMF for UEFI
 * Support run qemu-agent in guest.
+* Support spice
 
 == Requirements
 
