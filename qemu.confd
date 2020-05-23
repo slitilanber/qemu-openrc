@@ -20,31 +20,30 @@
 VM_NAME="alpine"
 
 # Boot order. Default is cdn.
-#  boot_order="cdn,once=d" 
+#boot_order="cdn,once=d" 
 
 # Whether to enable ovmf for UEFI support. Default is no.
-#  enable_ovmf="yes" 
+#enable_ovmf="yes" 
 
 # Whether to enable audio device. Default is no.
-#  enable_audio="yes"
+#enable_audio="yes"
 
 # Whether to enable virtio. Default is yes.
 # If VMs will use virtio-rng,virtio-serial,virtio-scsi,virtio-net,
-# and spice, Must enable virtio.
-#  enable_virtio="no"
+# Must enable virtio.
+#enable_virtio="no"
 
 # Whether to enable usb_controller. Default is yes.
-#  enable_usb_controller="no"
+#enable_usb_controller="no"
 
 # Keyboard layout. Default is en-us.
-#  keyboard="en-us"
+#keyboard="en-us"
 
 # User to run the QEMU process. Default is qemu.
-#  user="root"
+#user="root"
 
 # Group to run the QEMU process. Default is qemu.
-# Use root when enable pci passthrough
-#  group="root"
+#group="root"
 
 # Where to store the QEMU process PID.
 pidfile="/run/qemu/${VM_NAME}/${VM_NAME}.pid"
@@ -54,28 +53,28 @@ logfile="/var/log/qemu/${VM_NAME}.log"
 
 # How many seconds to wait after sending "system_shutdown"
 # before force stopping the VM. Default is 40 seconds
-#  shutdown_timeout=40
+#shutdown_timeout=40
 
 # QEMU system to emulate; you need qemu-system-${system_type} binary.
-#  system_type="x86_64"
+#system_type="x86_64"
 
-# Whether to enable KVM (hardware-assisted virtualization).
-enable_kvm="yes"
+# Whether to enable KVM (hardware-assisted virtualization). Default is yes.
+#enable_kvm="no"
 
-# Select CPU model. Value "host" is allowed only for KVM.
+# Select CPU model. Value "host" is allowed only for KVM. Default is host.
 # Run `qemu-system-$system_type -cpu help` for list of options.
-#  cpu_model="host"
+#cpu_model="host"
 
-# Simulate an SMP system with n CPUs.
-smp_cpus="2"
+# Simulate an SMP system with n CPUs. Default is 1.
+#smp_cpus="2"
 
 # Maximum number of hotpluggable CPUs, i.e. how many CPUs may be added to the
 # VM after startup from the monitor console.
-#  smp_cpus_max="$smp_cpus"
+#smp_cpus_max="$smp_cpus"
 
 # Amount of RAM to allocate for the VM on startup. Use suffix "M" or "G" for
-# megabytes or gigabytes respectively.
-memory="2G"
+# megabytes or gigabytes respectively. Default is 1G.
+#memory="1G"
 
 # Maximum amount of RAM the VM can reach, i.e. how much memory may be allocated
 # for the VM after startup from the monitor console. Use suffix "M" or "G" for
@@ -85,28 +84,41 @@ memory="2G"
 # Number of memory slots for additional hotpluggable memory. If it's 0, then
 # memory hotplug won't be enabled and the VM startup RAM will never increase.
 # If $memory == $memory_max, then this is forced to 0.
-#  memory_slots=2
+#memory_slots=2
 
 # Whether to use hugetlbfs mounted on $hugepages_path for the VM RAM.
-#  memory_hugepages="no"
+# Default is no.
+#memory_hugepages="yes"
 
 # Mount point of the hugetlbfs.
-#  hugepages_path="/dev/hugepages"
+#hugepages_path="/dev/hugepages"
 
 # Start the RTC at the current UTC, or local time? Use "utc", or "localtime".
-# Note: "localtime" is required for correct date in Windows.
-rtc_base="utc"
+# Note: "localtime" is required for correct date in Windows. Default is utc.
+#rtc_base="localtime"
 
 # Select type of VGA card to emulate. Valid values for type are: cirrus, std,
 # vmware, qxl, tcx, cg3, and none. See option -vga in man qemu for more information.
 # When spice are enabled, must be set to qxl.
-#  vga="qxl"
+#vga="qxl"
 
 # Whether to enable spice. Default is no.
 # Refer to "https://www.spice-space.org/spice-user-manual.html"
 #  enable_spice="yes"
 spice_port="5930"
-spice_password="123456"
+
+# Security option for spice. Default is disable-ticketing.
+# uncomment one of the options bellow.
+#  spice_auth="password='yourpassword'"
+#  spice_auth="sasl"
+spice_auth="disable-ticketing"
+
+# Whether to enable folder sharing. Default is no.
+# It seems only work for client in linux.
+#  enable_spice_folder_share="yes"
+
+# Whether to enable streaming-video. Default is no.
+#  enable_spice_streaming_video="yes"
 
 # For host video encoding, SPICE natively supports MJPEG encoding. 
 # For using further codecs, SPICE server must be compiled with GStreamer support.
@@ -133,7 +145,7 @@ monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 # Path of RNG divice. Default is '/dev/random'.
 # Refer to "https://wiki.qemu.org/Features/VirtIORNG"
 # Need root permission for /dev/hwrng.
-#  rng_filename="/dev/hwrng"
+#rng_filename="/dev/hwrng"
 
 # Whether to enable qemu-agent via virtio-serial or isa-serial
 # Refer to "https://wiki.qemu.org/Features/GuestAgent".
@@ -147,7 +159,7 @@ monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 # > in our case, "C:\Program Files\Qemu-ga>qemu-ga.exe" -m isa-serial -p COM1 -d
 # > Run "_net start qemu-ga_" to start the service.
 # > Run "net stop qemu-ga" to stop the service.
-#  enable_qemu_agent="yes"
+#enable_qemu_agent="yes"
 
 #######################################################
 ## Network interfaces
@@ -180,12 +192,12 @@ monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 ## Example:
 #
 ## For sata images, "none" are availble if.
-#   disk0_file="/var/lib/qemu/${VM_NAME}/disk0.qcow2"
+#   disk0_file="var/lib/qemu/${VM_NAME}/disk0.qcow2"
 #   disk0_format="raw"
 #   disk0_type="sata"
 #   disk0_cache="none"
 #   disk0_if="none"
-#   disk0_opts=","
+#   disk0_opts=",aio=native"
 
 ## For physical drives, "virtio" and "none" are availble if.
 #   disk0_file="/dev/mapper/${VM_NAME}-disk0"
@@ -193,7 +205,7 @@ monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 #   disk0_type="sata"
 #   disk0_cache="none"
 #   disk0_if="none"
-#   disk0_opts=","
+#   disk0_opts=",aio=native,discard=on,detect-zeroes=on"
 
 ## For virtio-scsi, "none" are availble if.
 #   disk2_file="/var/lib/qemu/${VM_NAME}/disk0.qcow2" 
@@ -201,7 +213,7 @@ monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 #   disk2_type="virtio-scsi"
 #   disk2_cache="none"
 #   disk2_if="none"
-#   disk2_opts=","
+#   disk2_opts=",aio=native,discard=unmap,detect-zeroes=unmap"
 
 ######################################################
 ## CD-ROMs
@@ -233,7 +245,7 @@ monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 #    "igb" stand for type of device, adn we will use for type
 #    "0000:02:00.0" stand for full address, and we will use for ids.
 # Default is no.
-#  enable_pci_passthrough="yes"
+#enable_pci_passthrough="yes"
 #
 # You can specify other parameters, but shoud use comma-separated key=value pairs and a prefix ","
 # type and ids is not used now, maybe use future.
@@ -262,7 +274,7 @@ monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 ######################################
 ## USB Passthrough
 # Default is no.
-#  enable_usb_passthrough="yes"
+#enable_usb_passthrough="yes"
 #
 # Example 1: passthrough a specified hostport to guest,
 # any usb device pluged in this hostport will be passthroughed.

@@ -21,6 +21,10 @@ VM_NAME="${RC_SVCNAME#qemu.}"
 : ${enable_pci_passthrough:=no}
 : ${enable_qemu_agent:=no}
 : ${enable_spice:=no}
+: ${enable_spice_folder_share:=no}
+: ${enable_spice_streaming_video:=no}
+: ${spice_port:=5930}
+: ${spice_auth:=disable-ticketing}
 : ${spice_streaming_video:=all}
 : ${spice_video_encoding:=host}
 : ${rng_filename:=/dev/random}
@@ -347,19 +351,25 @@ usb_controller() {
 spice_args() {
 	[ "$enable_virtio" != 'yes' ] && { eerror 'ERROR: virtio has been disabled, could not enable spice.'; return 1; }
 
-	if [ "$spice_video_encoding" = 'host' ]; then
-		echo "-spice port=${spice_port},password=${spice_password},seamless-migration=on,streaming-video=${spice_streaming_video}"
+	if [ "$enable_spice_streaming_video" = 'yes' ] && [ "$spice_video_encoding" = 'host' ]; then
+		streaming_video=",streaming-video=${spice_streaming_video}"
 	else
-		echo "-spice port=${spice_port},password=${spice_password},seamless-migration=on"
+		stream_video=''
 	fi
-	
-	echo "	-device virtio-serial-pci
-		-chardev spicevmc,id=spicechannel0,name=vdagent
-		-device virtserialport,chardev=spicechannel0,name=com.redhat.spice.0"
 
-	if [ "$spice_video_encoding" = 'client' ]; then
+	echo "  -spice port=${spice_port},${spice_auth},seamless-migration=on${streaming_video}	
+		-device virtio-serial-pci
+		-device virtserialport,chardev=spicechannel0,name=com.redhat.spice.0
+		-chardev spicevmc,id=spicechannel0,name=vdagent"
+
+	if [ "$enable_spice_streaming_video" = 'yes' ] && [ "$spice_video_encoding" = 'client' ]; then
 		echo " 	-device virtserialport,chardev=charchannel1,id=channel1,name=org.spice-space.stream.0
 			-chardev spiceport,name=org.spice-space.stream.0,id=charchannel1"
+	fi
+
+	if [ "$enable_spice_folder_share" = 'yes' ]; then
+		echo "	-device virtserialport,chardev=charchannel2,id=channel2,name=org.spice-space.webdav.0
+			-chardev spiceport,name=org.spice-space.webdav.0,id=charchannel2"
 	fi
 
 	[ "$enable_usb_controller" != 'yes' ] && { eerror 'ERROR: usb controller has been disabled, could not enable usb redirection for spice.'; return 1; }
@@ -374,7 +384,7 @@ cdrom_args() {
 	for idx in $(seq 0 5); do
 		file=$(getval "cdrom${idx}_file")
 		
-		# Attach up to 6 CDROMs to built-in ich9-ahci controller in Q35 Vms.
+		# Attach up to 6 CDROMs to the built-in ich9-ahci controller in Q35 Vms.
 		[ -n "$file" ] && echo "-drive file=$file,media=cdrom,if=ide,readonly,cache=none,node-name=cdr${idx}"
 	done
 }
