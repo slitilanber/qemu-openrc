@@ -13,16 +13,17 @@ VM_NAME="${RC_SVCNAME#qemu.}"
 : ${system_type:=x86_64}
 : ${boot_order:=cdn}
 : ${enable_kvm:=yes}
-: ${enable_virtio_balloon:=yes}
-: ${enable_virtio_scsi:=yes}
-: ${enable_virtio_rng:=yes}
-: ${rng_filename:=/dev/random}
-: ${enable_usb_device:=yes}
+: ${enable_virtio:=yes}
+: ${enable_ovmf:=no}
+: ${enable_audio:=no}
+: ${enable_usb_controller:=yes}
 : ${enable_usb_passthrough:=no}
 : ${enable_pci_passthrough:=no}
 : ${enable_qemu_agent:=no}
-: ${enable_extra_sata:=no}
-: ${enable_ovmf:=no}
+: ${enable_spice:=no}
+: ${spice_streaming_video:=all}
+: ${spice_video_encoding:=host}
+: ${rng_filename:=/dev/random}
 : ${cpu_model:=host}
 : ${smp_cpus:=1}
 : ${smp_cpus_max:=$smp_cpus}
@@ -95,44 +96,14 @@ start_pre() {
 	if yesno "$enable_kvm"; then
 		command_args_push '-enable-kvm'
 	fi
-	
-	if yesno "$enable_usb_device"; then
-		command_args_push "
-         		-machine usb=on
-			-device usb-tablet
-        		-device ich9-usb-ehci1,id=usb
-			-device ich9-usb-uhci1,masterbus=usb.0,firstport=0,multifunction=on
-			-device ich9-usb-uhci2,masterbus=usb.0,firstport=2 
-        		-device ich9-usb-uhci3,masterbus=usb.0,firstport=4
-        		-device nec-usb-xhci,id=usb2"
-	fi
 
-	if yesno "$enable_virtio_balloon"; then
-		command_args_push '-device virtio-balloon'
-	fi
-
-	if yesno "$enable_virtio_rng"; then
-		command_args_push "$(rng_args)"
+	if yesno "$enable_virtio"; then
+		command_args_push "-device virtio-balloon-pci -device virtio-scsi-pci,id=scsi $(rng_args)"
 	fi
 	
-	if yesno "$enable_qemu_agent"; then
-		command_args_push "
-			-chardev socket,path=/run/qemu/${VM_NAME}/qga.sock,server,nowait,id=qga0
-			-device virtio-serial 
-			-device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0"
-	fi
-
-	if yesno "$enable_extra_sata"; then
-		command_args_push '-device ahci,id=ahci0,multifunction=on'
-	fi
-	
-	if yesno "$enable_virtio_scsi"; then
-		command_args_push '-device virtio-scsi-pci,id=scsi'
-	fi
-
 	if yesno "$enable_ovmf"; then
 		cp /usr/share/OVMF/OVMF_VARS.fd /run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd
-		chown -R $user:$group /run/qemu/${VM_NAME}/OVMF_VARS_$VM_NAME.fd
+		chown -R $user:$group /run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd
 		command_args_push "
 			-drive if=pflash,format=raw,readonly,file=/usr/share/OVMF/OVMF_CODE.fd
 			-drive if=pflash,format=raw,file=/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd"
@@ -141,24 +112,41 @@ start_pre() {
 	if [ "$memory" = "$memory_max" ]; then
 		memory_slots="0"
 	fi
+
 	command_args_push "-m size=$memory,slots=$memory_slots,maxmem=$memory_max"
 
 	if yesno "$memory_hugepages"; then
 		command_args_push "-mem-path $hugepages_path"
 	fi
 
+	if [ -n "$vnc_display" ]; then
+		command_args_push "-display vnc=${vnc_listen}:${vnc_display}${vnc_password:+",password"}"
+	fi
+	
+	if yesno "$enable_usb_controller"; then
+		command_args_push "$(usb_controller)"
+	fi
+
+	if yesno "$enable_audio"; then
+		command_args_push "-device ich9-intel-hda,id=sound0 -device hda-duplex,cad=0"
+	fi
+
+	if yesno "$enable_qemu_agent"; then
+		command_args_push "$(qga_args)"
+	fi
+
+	if yesno "$enable_spice"; then
+		command_args_push "$(spice_args)"
+	fi
+	
 	if yesno "$enable_usb_passthrough"; then
-		check_user
+		[ "$user" != 'root' ] && { eerror 'ERROR: USB Passthrough needs root permissions.'; return 1; }
 		command_args_push "$(usb_args)"
 	fi
 	
 	if yesno "$enable_pci_passthrough"; then
-		check_user
+		[ "$user" != 'root' ] && { eerror 'ERROR: PCI Passthrough needs root permissions'; return 1; }
 		command_args_push "$(pci_args)"
-	fi
-
-	if [ -n "$vnc_display" ]; then
-		command_args_push "-display vnc=${vnc_listen}:${vnc_display}${vnc_password:+",password"}"
 	fi
 
 	command_args_push "$(net_args) $(disk_args) $(cdrom_args) $extra_args"
@@ -177,9 +165,7 @@ start_pre() {
 }
 
 start_post() {
-	ewaitfile 5 "$monitor_socket" || {
-		eerror 'Monitor socket has not been created!'; return 1
-	}
+	ewaitfile 5 "$monitor_socket" || { eerror 'Monitor socket has not been created!'; return 1; }
 	if [ -n "$vnc_password" ]; then
 		qemush "set_password vnc $vnc_password" || eerror 'Failed to set VNC password!'
 	fi
@@ -218,7 +204,7 @@ stop() {
 stop_post() {
 	[ -S "$monitor_socket" ] && rm -f "$monitor_socket"
 	[ -f "$pidfile" ] && rm -f "$pidfile"
-        [ -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd"
+	[ -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd" ] && rm -f "/run/qemu/${VM_NAME}/OVMF_VARS_${VM_NAME}.fd"
 	[ -S "/run/qemu/${VM_NAME}/qga.sock" ] && rm -f "/run/qemu/${VM_NAME}/qga.sock"
 	return 0
 }
@@ -281,53 +267,59 @@ command_args_push() {
 }
 
 disk_args() {
-	local idx opts driver format cache if opts
+	local idx file type format cache if opts
 
-	for idx in $(seq 0 5); do
-		disk_id="disk${idx}"
+	for idx in $(seq 0 11); do
 		file=$(getval "disk${idx}_file")
 		type=$(getval "disk${idx}_type")
 		format=$(getval "disk${idx}_format")
-		cache=$(getval "disk${idx}_cache")
-		if=$(getval "disk${idx}_if")
+		cache=$(getval "disk${idx}_cache" none)
+		if=$(getval "disk${idx}_if" none)
 		opts=$(getval "disk${idx}_opts")
 		if [ -n "$file" ] ; then
 			if [ "$type" = 'virtio-scsi' ]; then
-				echo "-drive file=$file,id=virtio_scsi${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
-				echo "-device scsi-hd,drive=virtio_scsi${idx},scsi-id=${idx}"
-			elif [ "$type" = 'extra-sata' ]; then
-				echo "-drive file=$file,id=extra_sata${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
-				echo "-device ide-hd,bus=ahci0.${idx},drive=extra_sata${idx},id=sata${idx}"
-			elif [ "$type" = 'native-sata' ]; then
-				echo "-drive file=$file,format=${format},node-name=native_sata${idx},cache=${cache},media=disk,if=${if}${opts}"
+				[ "$enable_virtio" != 'yes' ] && { eerror "virtio has been disabled, can't use virtio-scsi."; return 1; }
+				echo "-drive file=$file,id=virtio-scsi${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
+				echo "-device scsi-hd,drive=virtio-scsi${idx},scsi-id=${idx},id=scsi${idx}"
+			fi
+			if [ "$type" = 'sata' ] && [ "${idx}" -lt 6 ]; then
+				echo "-device ich9-ahci,id=ahci0,multifunction=on"
+				echo "-drive file=$file,id=sata-disk${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
+				echo "-device ide-hd,bus=ahci0.${idx},drive=sata-disk${idx},id=sata${idx}"
+			fi
+			if [ "$type" = 'sata' ] && [ "${idx}" -ge 6 ]; then
+				echo "-device ich9-ahci,id=ahci1,multifunction=on"
+				echo "-drive file=$file,id=sata-disk${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
+				echo "-device ide-hd,bus=ahci1.$((${idx} - 6)),drive=sata-disk${idx},id=sata${idx}"
 			fi
 		fi
 	done
 }
 
 rng_args() { 
-	filename=$(getval "rng_filename")
-	if [ "$filename" = '/dev/hwrng' ]; then
-		check_user
-	fi
-	echo "-object rng-random,filename=$filename,id=rng0"
-	echo "-device virtio-rng-pci,rng=rng0"
+	filename=$(getval "rng_filename" /dev/random)
+	[ "$filename" = '/dev/hwrng' ] && [ "$user" != 'root' ] && { eerror "ERROR: /dev/hwrng needs root permissions"; return 1; }
+	echo "-object rng-random,filename=$filename,id=rng0 -device virtio-rng-pci,rng=rng0"
+}
+
+qga_args() {
+	echo "-chardev socket,path=/run/qemu/${VM_NAME}/qga.sock,server,nowait,id=qga0"
+	[ "$enable_virtio" = 'yes' ] && echo "-device virtio-serial -device virtserialport,chardev=qga0,name=org.qemu.guest_agent.0"
+	[ "$enable_virtio" != 'yes' ] && echo "-device isa-serial,chardev=qga0,id=serial0"
 }
 
 pci_args() {
-         local idx pci_bus pci_opts
+	local idx pci_bus pci_opts
 
-         for idx in $(seq 0 9); do
+	for idx in $(seq 0 9); do
 		pci_bus=$(getval "pci${idx}_bus")
 		pci_opts=$(getval "pci${idx}_opts")
-		if [ -n "$pci_bus" ]; then                  
-			echo "-device vfio-pci,host=$pci_bus${pci_opts}"
-		fi
-         done
+		
+		[ -n "$pci_bus" ] && echo "-device vfio-pci,host=$pci_bus${pci_opts}"
+	done
 }
 
 usb_args() {
-	export enable_usb_device="yes"
 	local idx type hostbus hostport vid pid
 
 	for idx in $(seq 0 9); do
@@ -337,23 +329,53 @@ usb_args() {
 		vid=$(getval "usb${idx}_vendorid")
 		pid=$(getval "usb${idx}_productid")
 
-		if [ "$type" = "hostport" ]; then     
-			echo "-device usb-host,hostbus=$hostbus,hostport=$hostport"
-		elif [ "$type" = "productid" ]; then
-			echo "-device usb-host,vendorid=$vid,productid=$pid"
-		fi
-        done
+		[ "$type" = "hostport" ] && echo "-device usb-host,hostbus=$hostbus,hostport=$hostport"
+		[ "$type" = "productid" ] && echo "-device usb-host,vendorid=$vid,productid=$pid"
+	done
+}
+
+usb_controller() {
+	echo "	-machine usb=on
+		-device usb-tablet
+		-device ich9-usb-ehci1,id=usb
+		-device ich9-usb-uhci1,masterbus=usb.0,firstport=0,multifunction=on
+		-device ich9-usb-uhci2,masterbus=usb.0,firstport=2 
+        	-device ich9-usb-uhci3,masterbus=usb.0,firstport=4
+        	-device nec-usb-xhci,id=usb2"
+}
+
+spice_args() {
+	[ "$enable_virtio" != 'yes' ] && { eerror 'ERROR: virtio has been disabled, could not enable spice.'; return 1; }
+
+	if [ "$spice_video_encoding" = 'host' ]; then
+		echo "-spice port=${spice_port},password=${spice_password},seamless-migration=on,streaming-video=${spice_streaming_video}"
+	else
+		echo "-spice port=${spice_port},password=${spice_password},seamless-migration=on"
+	fi
+	
+	echo "	-device virtio-serial-pci
+		-chardev spicevmc,id=spicechannel0,name=vdagent
+		-device virtserialport,chardev=spicechannel0,name=com.redhat.spice.0"
+
+	if [ "$spice_video_encoding" = 'client' ]; then
+		echo " 	-device virtserialport,chardev=charchannel1,id=channel1,name=org.spice-space.stream.0
+			-chardev spiceport,name=org.spice-space.stream.0,id=charchannel1"
+	fi
+
+	[ "$enable_usb_controller" != 'yes' ] && { eerror 'ERROR: usb controller has been disabled, could not enable usb redirection for spice.'; return 1; }
+	echo "	-chardev spicevmc,name=usbredir,id=usbredirchardev1 -device usb-redir,chardev=usbredirchardev1,id=usbredirdev1
+		-chardev spicevmc,name=usbredir,id=usbredirchardev2 -device usb-redir,chardev=usbredirchardev2,id=usbredirdev2 
+		-chardev spicevmc,name=usbredir,id=usbredirchardev3 -device usb-redir,chardev=usbredirchardev3,id=usbredirdev3"
 }
 
 cdrom_args() {
 	local idx file
 
-	for idx in $(seq 0 9); do
+	for idx in $(seq 0 5); do
 		file=$(getval "cdrom${idx}_file")
-
-		if [ -n "$file" ]; then
-			echo "-drive file=$file,media=cdrom,if=ide,readonly,cache=none,node-name=cdr${idx}"
-		fi
+		
+		# Attach up to 6 CDROMs to built-in ich9-ahci controller in Q35 Vms.
+		[ -n "$file" ] && echo "-drive file=$file,media=cdrom,if=ide,readonly,cache=none,node-name=cdr${idx}"
 	done
 }
 
@@ -364,9 +386,7 @@ net_args() {
 		net_id="net${idx}"
 		net_type=$(getval "$net_id")
 
-		if [ "$net_type" = 'bridge' ]; then
-			check_bridge "$(getval ${net_id}_br br0)"
-		fi
+		[ "$net_type" = 'bridge' ] && check_bridge "$(getval ${net_id}_br br0)"
 
 		if [ -n "$net_type" ]; then
 			# comma-separated key=value pairs; contains trailing comma if not empty
@@ -383,10 +403,7 @@ net_args() {
 check_bridge() {
 	local name="$1"
 
-	if [ ! -e "/sys/class/net/$name" ]; then
-		ewarn "WARNING: Bridge $name does not exist"
-		return 1
-	fi
+	[ ! -e "/sys/class/net/$name" ] && { ewarn "WARNING: Bridge $name does not exist"; return 1; }
 
 	if [ "$user" != 'root' ] \
 			&& ! grep -q "^allow\s*$name\W*" /etc/qemu/bridge.conf 2>/dev/null; then
@@ -414,11 +431,4 @@ getval() {
 	local default="${2:-}"
 
 	eval "printf '%s\n' \"\${$var_name:-$default}\""
-}
-
-check_user() {
-	if [ "$user" != 'root' ]; then
-		ewarn "ERROR: user should be root when hwrng,usb or pci passthrough is enabled"
-		return 1
-	fi
 }
