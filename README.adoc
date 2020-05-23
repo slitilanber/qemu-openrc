@@ -7,11 +7,12 @@ You don’t need https://libvirt.org[libvirt] and its https://libvirt.org/format
 ____
 
 == Added features: 
-* Support passthrough usb, PCI devices via vfio-pci.
+* Support passthrough usb, PCI devices via vfio-pci
 * Support SATA devices
 * Support OVMF for UEFI
-* Support run qemu-agent in guest.
+* Support run qemu-agent in vms
 * Support spice
+* Support disable virtio
 
 == Requirements
 
