@@ -189,6 +189,13 @@ monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
 # When mapping physical drives to VMs, set if to "virtio" for perfomance.
 # You can specify other parameters when you need, 
 # and use comma-separated key=value pairs and don't delete the prefix ",".
+
+# Whether to enable sata controller. Default is no. 
+# When [X <=6 ], only need to enable controller1.
+# When [X > 6 ], need to enable controller2.
+#  enable_sata_controller1="yes"
+#  enable_sata_controller2="yes"
+
 ## Example:
 #
 ## For sata images, "none" are availble if.

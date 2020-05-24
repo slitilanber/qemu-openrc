@@ -16,6 +16,8 @@ VM_NAME="${RC_SVCNAME#qemu.}"
 : ${enable_virtio:=yes}
 : ${enable_ovmf:=no}
 : ${enable_audio:=no}
+: ${enable_sata_controller1:=no}
+: ${enable_sata_controller2:=no}
 : ${enable_usb_controller:=yes}
 : ${enable_usb_passthrough:=no}
 : ${enable_pci_passthrough:=no}
@@ -273,6 +275,9 @@ command_args_push() {
 disk_args() {
 	local idx file type format cache if opts
 
+	[ "$enable_sata_controller1" = 'yes' ] && echo "-device ich9-ahci,id=ahci0,multifunction=on"
+	[ "$enable_sata_controller2" = 'yes' ] && echo "-device ich9-ahci,id=ahci1,multifunction=on"
+
 	for idx in $(seq 0 11); do
 		file=$(getval "disk${idx}_file")
 		type=$(getval "disk${idx}_type")
@@ -287,12 +292,10 @@ disk_args() {
 				echo "-device scsi-hd,drive=virtio-scsi${idx},scsi-id=${idx},id=scsi${idx}"
 			fi
 			if [ "$type" = 'sata' ] && [ "${idx}" -lt 6 ]; then
-				echo "-device ich9-ahci,id=ahci0,multifunction=on"
 				echo "-drive file=$file,id=sata-disk${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
 				echo "-device ide-hd,bus=ahci0.${idx},drive=sata-disk${idx},id=sata${idx}"
 			fi
 			if [ "$type" = 'sata' ] && [ "${idx}" -ge 6 ]; then
-				echo "-device ich9-ahci,id=ahci1,multifunction=on"
 				echo "-drive file=$file,id=sata-disk${idx},format=${format},cache=${cache},media=disk,if=${if}${opts}"
 				echo "-device ide-hd,bus=ahci1.$((${idx} - 6)),drive=sata-disk${idx},id=sata${idx}"
 			fi
@@ -363,13 +366,13 @@ spice_args() {
 		-chardev spicevmc,id=spicechannel0,name=vdagent"
 
 	if [ "$enable_spice_streaming_video" = 'yes' ] && [ "$spice_video_encoding" = 'client' ]; then
-		echo " 	-device virtserialport,chardev=charchannel1,id=channel1,name=org.spice-space.stream.0
-			-chardev spiceport,name=org.spice-space.stream.0,id=charchannel1"
+		echo " 	-device virtserialport,chardev=streamchannel0,name=org.spice-space.stream.0
+			-chardev spiceport,name=org.spice-space.stream.0,id=streamchannel0"
 	fi
 
 	if [ "$enable_spice_folder_share" = 'yes' ]; then
-		echo "	-device virtserialport,chardev=charchannel2,id=channel2,name=org.spice-space.webdav.0
-			-chardev spiceport,name=org.spice-space.webdav.0,id=charchannel2"
+		echo "	-device virtserialport,chardev=webdavchannel0,name=org.spice-space.webdav.0
+			-chardev spiceport,name=org.spice-space.webdav.0,id=webdavchannel0"
 	fi
 
 	[ "$enable_usb_controller" != 'yes' ] && { eerror 'ERROR: usb controller has been disabled, could not enable usb redirection for spice.'; return 1; }
