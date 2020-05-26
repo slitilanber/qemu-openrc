@@ -1,6 +1,7 @@
 # /etc/conf.d/qemu
 # vim: set ft=sh:
-# source: https://github.com/jirutka/qemu-openrc
+# Forked from: https://github.com/jirutka/qemu-openrc
+# Source: https://github.com/slitilanber/qemu-openrc
 
 ###############################################################################
 #    This configuration file defines default options for all QEMU machines    #
@@ -8,298 +9,335 @@
 #                                                                             #
 #       Specific configuration for each VM should be defined in a file        #
 #                         /etc/conf.d/qemu.<VM_NAME>.                         #
+#-----------------------------------------------------------------------------#
+# This is an example configuration for qemu runscript. It contain all         #
+# user-definable variables with their default values. If the default value is #
+# suitable for you, then you can omit that variable in your VM config.        #
 ###############################################################################
 
-#
-# This is an example configuration for qemu runscript. It contain all
-# user-definable variables with their default values. If the default value is
-# suitable for you, then you can omit that variable in your VM config.
-#
+#-----------------------------------------------------------------------------#
+#  VM Name                                                                    #
+#-----------------------------------------------------------------------------#
+  VM_NAME="alpine"
 
-# VM's name
-VM_NAME="alpine"
+#-----------------------------------------------------------------------------#
+#  Boot Order                                                  Default is cdn.#
+#-----------------------------------------------------------------------------#
+#  boot_order="cdn,once=d"
 
-# Boot order. Default is cdn.
-#boot_order="cdn,once=d" 
+#-----------------------------------------------------------------------------#
+#  Enable OVMF for UEFI                                         Default is no.#
+#-----------------------------------------------------------------------------# 
+#  enable_ovmf="yes" 
 
-# Whether to enable ovmf for UEFI support. Default is no.
-#enable_ovmf="yes" 
+#-----------------------------------------------------------------------------#
+#  Enable kvm                                                  Default is yes.#
+#-----------------------------------------------------------------------------#
+#  enable_kvm="no" 
 
-# Whether to enable audio device. Default is no.
-#enable_audio="yes"
+#-----------------------------------------------------------------------------#
+#  System Architecture                                      Default is x86_64.#
+#-----------------------------------------------------------------------------#
+# Need qemu-system-${system_type} binary.
+#  system_type="x86_64"
 
-# Whether to enable virtio. Default is yes.
-# If VMs will use virtio-rng,virtio-serial,virtio-scsi,virtio-net,
-# Must enable virtio.
-#enable_virtio="no"
+#-----------------------------------------------------------------------------#
+#  OS Type   --Only for windows7                             No default value.#
+#-----------------------------------------------------------------------------#
+# Because there's no usb3.0 driver for qemu-xhci, if guest vm is windows7,
+# we'll change default usb controller from qemu-xhci to nec-usb-xhci.
+#  os_type="windows7"
 
-# Whether to enable usb_controller. Default is yes.
-#enable_usb_controller="no"
+#-----------------------------------------------------------------------------#
+#  Enable Audio Device                              Default is ich9-intel-hda.#
+#-----------------------------------------------------------------------------#
+# valid value is [ich9-intel-hda|ac97]. The sound will be broken when using hda
+# and spice, so choose ac97 for using spice.
+# If it is commented, audio device will be disabled.
+#  audio_device="ac97"
 
-# Keyboard layout. Default is en-us.
-#keyboard="en-us"
+#-----------------------------------------------------------------------------#
+#  Enable Virtio-pci                                           Default is yes.#
+#-----------------------------------------------------------------------------#
+# virtio-rng, virtio-serial, virtio-scsi, virtio-net, virtio-console, 
+# qemu-agent and spice requires virtio. and will force to be enable it.
+#  enable_virtio="no"
 
-# User to run the QEMU process. Default is qemu.
-#user="root"
+#-----------------------------------------------------------------------------#
+#  Enable USB Controller                                       Default is yes.#
+#-----------------------------------------------------------------------------#
+# Mouse and Keyboard in OS with GUI, spice-usbredir and USB Passthrough
+# depend on this. If spice or USB passthrough is enabled, this will be 
+# forced to yes.
+#  enable_usb_controller="no"
 
-# Group to run the QEMU process. Default is qemu.
-#group="root"
+#-----------------------------------------------------------------------------#
+#  Keyboard Language                                         Default is en-us.#
+#-----------------------------------------------------------------------------#
+#  keyboard="en-us"
 
-# Where to store the QEMU process PID.
+#-----------------------------------------------------------------------------#
+#  User and Group to run qemu                                 Default is qemu.#
+#-----------------------------------------------------------------------------#
+  user="root"
+  group="root"
+
+#-----------------------------------------------------------------------------#
+#  Path of pidfile and logfile                                                #
+#-----------------------------------------------------------------------------#
 pidfile="/run/qemu/${VM_NAME}/${VM_NAME}.pid"
-
-# Where to redirect stdout/stderr of the QEMU process.
 logfile="/var/log/qemu/${VM_NAME}.log"
 
-# How many seconds to wait after sending "system_shutdown"
-# before force stopping the VM. Default is 40 seconds
-#shutdown_timeout=40
+#-----------------------------------------------------------------------------#
+#  Shutdown Timeout                                     Default is 40 seconds.#
+#-----------------------------------------------------------------------------#
+# Timeout to wait after sending "system_shutdown" before force stopping the VM.
+#  shutdown_timeout=40
 
-# QEMU system to emulate; you need qemu-system-${system_type} binary.
-#system_type="x86_64"
-
-# Whether to enable KVM (hardware-assisted virtualization). Default is yes.
-#enable_kvm="no"
-
-# Select CPU model. Value "host" is allowed only for KVM. Default is host.
+#-----------------------------------------------------------------------------#
+#  CPU Arguments                                                              #
+#-----------------------------------------------------------------------------#
+# Value "host" is allowed only for KVM. Default is host.
 # Run `qemu-system-$system_type -cpu help` for list of options.
-#cpu_model="host"
+#  cpu_model="host"
 
-# Simulate an SMP system with n CPUs. Default is 1.
-#smp_cpus="2"
+# Simulate an SMP system with n vCPUs. Default is 1.
+#  smp_cpus="2"
 
-# Maximum number of hotpluggable CPUs, i.e. how many CPUs may be added to the
-# VM after startup from the monitor console.
-#smp_cpus_max="$smp_cpus"
+# Maximum number of hotpluggable vCPUs, i.e. how many vCPUs may
+# be added to the VM after startup from the monitor console.
+#  smp_cpus_max="$smp_cpus"
 
-# Amount of RAM to allocate for the VM on startup. Use suffix "M" or "G" for
-# megabytes or gigabytes respectively. Default is 1G.
-#memory="1G"
+#-----------------------------------------------------------------------------#
+#  Memory Arguments                        Default is 1G RAM and no hugepages.#
+#-----------------------------------------------------------------------------#
+# Amount of RAM to allocate for the VM on startup. 
+# Use suffix "M" or "G" for megabytes or gigabytes respectively. 
+  memory="2G"
 
-# Maximum amount of RAM the VM can reach, i.e. how much memory may be allocated
-# for the VM after startup from the monitor console. Use suffix "M" or "G" for
-# megabytes or gigabytes respectively.
+# Maximum amount of RAM the VM can reach, i.e. how much memory may
+# be allocatedfor the VM after startup from the monitor console. 
+# Use suffix "M" or "G" for megabytes or gigabytes respectively.
 #  memory_max="$memory"
 
-# Number of memory slots for additional hotpluggable memory. If it's 0, then
+# Number of memory slots for additional hotpluggable memory. If it's 0, then 
 # memory hotplug won't be enabled and the VM startup RAM will never increase.
 # If $memory == $memory_max, then this is forced to 0.
-#memory_slots=2
+#  memory_slots=2
 
-# Whether to use hugetlbfs mounted on $hugepages_path for the VM RAM.
-# Default is no.
-#memory_hugepages="yes"
+# Whether to use hugetlbfs mounted on $hugepages_path for the VM RAM. Default is no.
+#  memory_hugepages="yes"
 
 # Mount point of the hugetlbfs.
-#hugepages_path="/dev/hugepages"
+#  hugepages_path="/dev/hugepages"
 
+#-----------------------------------------------------------------------------#
+#  RTC Base                                                    Default is utc.#
+#-----------------------------------------------------------------------------#
 # Start the RTC at the current UTC, or local time? Use "utc", or "localtime".
 # Note: "localtime" is required for correct date in Windows. Default is utc.
-#rtc_base="localtime"
+#  rtc_base="localtime"
 
-# Select type of VGA card to emulate. Valid values for type are: cirrus, std,
-# vmware, qxl, tcx, cg3, and none. See option -vga in man qemu for more information.
-# When spice are enabled, must be set to qxl.
-#vga="qxl"
+#-----------------------------------------------------------------------------#
+#  Path of virtio-rng    --Requires virtio           Default is '/dev/random'.#
+#-----------------------------------------------------------------------------#
+# Refer to "https://wiki.qemu.org/Features/VirtIORNG".
+# Hardware RNG device '/dev/hwrng' requires root permissions.
+#  rng_filename="/dev/hwrng"
 
-# Whether to enable spice. Default is no.
+#-----------------------------------------------------------------------------#
+#  Display Arguments - VGA                                     Default is std.#
+#-----------------------------------------------------------------------------#
+# Valid values for type are: cirrus, std, vmware, qxl, tcx, cg3, and none.
+# See option -vga in man qemu for more information.
+# When spice is enabled, must be set to qxl.
+#  vga="qxl"
+
+#-----------------------------------------------------------------------------#
+#  Display Arguments - Spice   --Requires virtio          Default is disabled.#
+#-----------------------------------------------------------------------------#
 # Refer to "https://www.spice-space.org/spice-user-manual.html"
+# This will force to enable usb_controller for usb redirection. 
 #  enable_spice="yes"
-spice_port="5930"
+  spice_port="5930"
 
 # Security option for spice. Default is disable-ticketing.
-# uncomment one of the options bellow.
-#  spice_auth="password='yourpassword'"
-#  spice_auth="sasl"
-spice_auth="disable-ticketing"
+# Valid value is [password|sasl|disable-ticketing]
+#  spice_auth="password"
+  spice_password="yourpassword"
 
 # Whether to enable folder sharing. Default is no.
 # It seems only work for client in linux.
-#  enable_spice_folder_share="yes"
+  enable_spice_folder_share="yes"
 
 # Whether to enable streaming-video. Default is no.
-#  enable_spice_streaming_video="yes"
+  enable_spice_streaming_video="yes"
 
 # For host video encoding, SPICE natively supports MJPEG encoding. 
 # For using further codecs, SPICE server must be compiled with GStreamer support.
-# Set to [client|host].
-spice_video_encoding="host"
+# Valid value for video encoding is [client|host].
+# Valid value for streaming video is [off|all|filter]
+  spice_video_encoding="host"
+  spice_streaming_video="all"
 
-# Set spice stream-video [off|all|filter]
-spice_streaming_video="all"
-
+#-----------------------------------------------------------------------------#
+#  Display Arguments - VNC                         Default listen on "0.0.0.0"#
+#-----------------------------------------------------------------------------#
 # Address to listen for VNC (TCP) connections.
-vnc_listen="0.0.0.0"
+#  vnc_listen="0.0.0.0"
 
 # VNC display number. If empty, then VNC will be disabled.
 # Note: By convention the TCP port is 5900+$vnc_display.
-vnc_display=01
+  vnc_display=01
 
-# Password required for client connections on VNC. If empty, then password
-# base authentication is disabled.
-#  vnc_password=
+# Password required for client connections on VNC.
+# If empty, then password base authentication is disabled.
+#  vnc_password="yourpassword"
 
-# Path of the QEMU monitor socket for this VM.
-monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
-
-# Path of RNG divice. Default is '/dev/random'.
-# Refer to "https://wiki.qemu.org/Features/VirtIORNG"
-# Need root permission for /dev/hwrng.
-#rng_filename="/dev/hwrng"
-
-# Whether to enable qemu-agent via virtio-serial or isa-serial
+#-----------------------------------------------------------------------------#
+#  Enable Qemu-agent     --Requires virtio                      Default is no.#
+#-----------------------------------------------------------------------------#
+# Whether to enable qemu-agent via virtio-serial, which requires  virtio.
 # Refer to "https://wiki.qemu.org/Features/GuestAgent".
 # and "https://bugzilla.redhat.com/show_bug.cgi?id=1535312"
-# For linux, 
-# > run "/usr/bin/qemu-ga -m isa-serial -p /dev/ttyS0 -l /var/log/qemu-ga.log -d" in guest.
-# For windows, 
-# > Run regedit, (Start->Run regedit)
-# > Navigate to HKEY_LOCAL_MACHINE/SYSTEM/CurrentControlSet/Services/qemu-ga
-# > Right click "ImagePath" then Modify..., and change it to suite isa serial device,
-# > in our case, "C:\Program Files\Qemu-ga>qemu-ga.exe" -m isa-serial -p COM1 -d
-# > Run "_net start qemu-ga_" to start the service.
-# > Run "net stop qemu-ga" to stop the service.
-#enable_qemu_agent="yes"
+#  enable_qemu_agent="yes"
 
-#######################################################
-## Network interfaces
-# You can specify up to 10 NICs using variables netX and netX_OPTION. For list
-# of available options open man qemu and find -netdev.
+#-----------------------------------------------------------------------------#
+#  Path of the QEMU monitor socket                                            #
+#-----------------------------------------------------------------------------#
+# Run 'socat - "UNIX-CONNECT:$monitor_socket"' to connect qemu console. 
+  monitor_socket="/run/qemu/${VM_NAME}/monitor.sock"
+
+#-----------------------------------------------------------------------------#
+#  Network interfaces                                                         #
+#-----------------------------------------------------------------------------#
+# You can specify up to 10 NICs using variables netX and netX_OPTION. 
+# For list of available options open man qemu and find -netdev.
 #
-# MAC address of the NIC is automatically generated from the VM name and
-# sequence number of the NIC, so it's always the same for particular VM and NIC
+# MAC address of the NIC is automatically generated from the VM name and NIC,
+# and sequence number of the NIC, so it's always the same for particular VM
 # and it should be unique as well. You can override the MAC address with
 # variable netX_mac.
 #
 # The default driver for NICs is virtio-net-pci (requires virtio-net driver
 # to be installed in the VM). You can override it with variable netX_device.
 #
-# Example:
-#   net0="bridge"
-#   net0_br="br0"
-#   net0_mac="52:54:12:34:56:78"
-#   net0_device="e1000"
-#
+## Example:
+#  net0="bridge"
+#  net0_br="br0"
+#  net0_mac="52:54:12:34:88:88"
+#  net0_device="virtio-net"
 
-#######################################################
-# Hard-drives
-#
+#-----------------------------------------------------------------------------#
+#  Hard-drives                                                                #
+#-----------------------------------------------------------------------------#
 # You can specify up to 12 drives using variables diskX_OPTION.
-#
-# When mapping physical drives to VMs, set if to "virtio" for perfomance.
-# You can specify other parameters when you need, 
-# and use comma-separated key=value pairs and don't delete the prefix ",".
+# Use comma-separated key=value pairs for opts, don't delete the prefix ",".
 
-# Whether to enable sata controller. Default is no. 
-# When [X <=6 ], only need to enable controller1.
-# When [X > 6 ], need to enable controller2.
+# Whether to enable sata controller for using sata disks. Default is no. 
+# When [X < 6], need to enable controller0.
+# When [X => 6], need to enable controller1.
+#  enable_sata_controller0="yes"
 #  enable_sata_controller1="yes"
-#  enable_sata_controller2="yes"
 
 ## Example:
 #
-## For sata images, "none" are availble if.
-#   disk0_file="var/lib/qemu/${VM_NAME}/disk0.qcow2"
-#   disk0_format="raw"
-#   disk0_type="sata"
-#   disk0_cache="none"
-#   disk0_if="none"
-#   disk0_opts=",aio=native"
+## For sata images, "none" are availble for if.
+#  disk0_file="/mnt/portable/qemu/${VM_NAME}/disk0.qcow2"
+#  disk0_format="qcow2"
+#  disk0_type="sata"
+#  disk0_cache="none"
+#  disk0_if="none"
+#  disk0_opts=",aio=native"
 
-## For physical drives, "virtio" and "none" are availble if.
-#   disk0_file="/dev/mapper/${VM_NAME}-disk0"
-#   disk0_format="raw"
-#   disk0_type="sata"
-#   disk0_cache="none"
-#   disk0_if="none"
-#   disk0_opts=",aio=native,discard=on,detect-zeroes=on"
+## For physical drives, "virtio" and "none" are availble for if.
+#  disk1_file="/dev/mapper/${VM_NAME}-disk0"
+#  disk1_format="raw"
+#  disk1_type="sata"
+#  disk1_cache="none"
+#  disk1_if="none"
+#  disk1_opts=",aio=native,discard=on,detect-zeroes=on"
 
-## For virtio-scsi, "none" are availble if.
-#   disk2_file="/var/lib/qemu/${VM_NAME}/disk0.qcow2" 
-#   disk2_format="qcow2" 
-#   disk2_type="virtio-scsi"
-#   disk2_cache="none"
-#   disk2_if="none"
-#   disk2_opts=",aio=native,discard=unmap,detect-zeroes=unmap"
+## For virtio-scsi, "none" are availble for if.
+#  disk2_file="/var/lib/qemu/${VM_NAME}/disk0.qcow2" 
+#  disk2_format="qcow2" 
+#  disk2_type="virtio-scsi"
+#  disk2_cache="none"
+#  disk2_if="none"
+#  disk2_opts=",aio=native,discard=unmap,detect-zeroes=unmap"
 
-######################################################
-## CD-ROMs
-#
+#-----------------------------------------------------------------------------#
+#  CD-ROMs                                                                    #
+#-----------------------------------------------------------------------------#
 # You can specify up to 6 CDROMs drives using variables cdromX_file.
-#
 # These drives will be attached to the built-in ich9-ahci SATA controller.
 # (no virtio required)
 #
 ## Example:
-#   cdrom0_file="/var/lib/qemu/virtio-win.iso"
+#  cdrom0_file="/var/lib/qemu/virtio-win.iso"
 
-######################################################
-# Hardware passthrough
-######################################
-## PCI Passthrough
-# Need root privilege.
-# You should specify what type of pci device you want to passthrough
-# Nomally is (i915|igb|ahci|others)
+#-----------------------------------------------------------------------------#
+#  PCI Passthrough via vfio-pci  --Requires root permissions.   Default is no.#
+#-----------------------------------------------------------------------------#
+#  enable_pci_passthrough="yes"
+
+# You can specify devices' driver used in the host. 
+# Valid value is (i915|igb|ahci|others)
 # "i915" stand for IGD of Intel CPU (aka. internal GPU Device)
 # "igb" stand for Intel internet card use igb driver,such as I210,I211.
 # "achi" stand for pcie sata card
 # "other",you can find by the command bellow
-# 1. lspci, this command to find bridged address of pci device you want to passthrough.
-#     such as '00:02:00' stand for IGD
-# 2. find /sys/bus/pci/drivers/*/ -path '*00:02:00*',this command will help you
-#    to find the type of device and its full address. Example, the result of this command
-#    "/sys/bus/pci/drivers/igb/0000:02:00.0"
-#    "igb" stand for type of device, adn we will use for type
-#    "0000:02:00.0" stand for full address, and we will use for ids.
-# Default is no.
-#enable_pci_passthrough="yes"
-#
-# You can specify other parameters, but shoud use comma-separated key=value pairs and a prefix ","
-# type and ids is not used now, maybe use future.
-# Uncomment bus to enable passthrough device.
-# You can specify other parameters when you need, 
-# and use comma-separated key=value pairs and don't delete the prefix ",".
- 
-#  pci0_type="i915"
+# Run "lspci -nnv" command to find the bus, ids and driver.
+# driver and ids is not used now, you can delete it. But maybe use future.
+# Use comma-separated key=value pairs for opts, don't delete the prefix ",".
+
+## Example:
+# 
+#  pci0_driver="i915"
 #  pci0_ids="8086:3e91"
 #  pci0_bus="0000:00:02.0"
 #  pci0_opts=",multifunction=on,x-vga=on,x-igd-opregion=on"
 
-#  pci1_type="ahci"
+#  pci1_driver="ahci"
 #  pci1_ids="1b21:0612"
 #  pci1_bus="0000:01:00.0"
 #  pci1_opts=",multifunction=on"
 
-#  pci2_type="igb"
+#  pci2_driver="igb"
 #  pci2_ids="8086:1539"
 #  pci2_bus="0000:02:00.0"
 
-#  pci3_type="nvme"
+#  pci3_driver="nvme"
 #  pci3_ids="1179:010f"
 #  pci3_bus="0000:03:00.0"
 
-######################################
-## USB Passthrough
-# Default is no.
-#enable_usb_passthrough="yes"
-#
-# Example 1: passthrough a specified hostport to guest,
-# any usb device pluged in this hostport will be passthroughed.
+#-----------------------------------------------------------------------------#
+#  USB Passthrough                                              Default is no.#
+#-----------------------------------------------------------------------------#
+#  enable_usb_passthrough="yes"
 
+# Example 1: 
+# passthrough a specified hostport to guest.
+# Any usb device pluged in this hostport will be passthroughed.
 #  usb0_type="hostport"
 #  usb0_hostbus="2"
-#  usb0_hostport="1"
+#  usb0_hostport="2"
 
-# Example 2: passthrough a specified usb device to guest according to vid & pid.
+# Example 2: 
+# passthrough a specified usb device to guest according to vid & pid.
 #  usb1_type="productid"
 #  usb1_vid="0x174c"
 #  usb1_pid="0x55aa"
 
-#######################################################
-## Any additional arguments to be passed to qemu-system-x86_64 command.
+#-----------------------------------------------------------------------------#
+#  Extra Arguments                                                            #
+#-----------------------------------------------------------------------------#
+# Any additional arguments to be passed to qemu-system-x86_64 command.
 #  extra_args=""
 
-#######################################################
+#-----------------------------------------------------------------------------#
+#  Service Dependencies                                                       #
+#-----------------------------------------------------------------------------#
 # Specify service dependencies. You can use the same directives as in the
 # depend() function, but as variables prefixed by "rc_" (e.g. rc_need, rc_use).
 #  rc_need=""
